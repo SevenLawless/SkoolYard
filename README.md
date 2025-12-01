@@ -34,3 +34,14 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Payments (brief)
+
+- When you enroll a student into a class, a pending payment is created automatically for that student with the class fees. The payment links to the student and the class.
+- If the student already has a pending payment for that class, no duplicate is created.
+- When you unenroll a student from a class, only pending payments for that pair are removed. Paid/cancelled ones remain.
+
+Examples:
+- Enroll Alice into "Math 101" (fees $150) → a pending payment of $150 is created for Alice with that class.
+- Enroll Alice again into the same class → no new payment is added (already pending).
+- Unenroll Alice from "Math 101" → any pending payment for Alice + Math 101 is removed.
