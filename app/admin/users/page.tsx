@@ -123,12 +123,32 @@ export default function UserManagement() {
     }
     if (confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
       try {
-        // TODO: Add DELETE endpoint for users
-        // For now, just refresh the list
-        await refreshUsers();
-        toast.success("User list refreshed");
-      } catch {
-        toast.error("Failed to refresh user list");
+        // Get CSRF token
+        const csrfResponse = await fetch('/api/auth/csrf');
+        const csrfData = await csrfResponse.json();
+        const csrfToken = csrfData.token;
+
+        // Delete user
+        const response = await fetch(`/api/admin/users/${userId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken,
+          },
+          credentials: 'include',
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          toast.success('User deleted successfully');
+          await fetchUsers(); // Refresh the list
+        } else {
+          toast.error(result.error || 'Failed to delete user');
+        }
+      } catch (error) {
+        console.error('Delete user error:', error);
+        toast.error('Failed to delete user');
       }
     }
   };
