@@ -1,592 +1,901 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState, useEffect, useCallback } from "react";
 import type { SchoolYardData, Student, Teacher, Staff, ClassItem, Payment, Task, AttendanceRecord, AdExpense, MarketingClass, MarketingExpense, CustomExpense, User, Classroom } from "@/lib/data";
 import { emptyData } from "@/lib/data";
+import toast from "react-hot-toast";
 
 type DataContextValue = {
   data: SchoolYardData;
+  loading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
   setData: (updater: (prev: SchoolYardData) => SchoolYardData) => void;
-  addStudent: (student: Omit<Student, "id">) => void;
-  updateStudent: (id: string, updates: Partial<Omit<Student, "id">>) => void;
-  deleteStudent: (id: string) => void;
-  enrollStudentInClass: (studentId: string, classId: string) => void;
-  unenrollStudentFromClass: (studentId: string, classId: string) => void;
-  addStudentTask: (studentId: string, task: Omit<Task, "id">) => void;
-  updateStudentTask: (studentId: string, taskId: string, updates: Partial<Task>) => void;
-  deleteStudentTask: (studentId: string, taskId: string) => void;
-  addStudentAttendance: (studentId: string, record: AttendanceRecord) => void;
-  addTeacher: (teacher: Omit<Teacher, "id">) => void;
-  updateTeacher: (id: string, updates: Partial<Omit<Teacher, "id">>) => void;
-  deleteTeacher: (id: string) => void;
-  addTeacherAttendance: (teacherId: string, record: AttendanceRecord) => void;
-  addStaff: (staff: Omit<Staff, "id">) => void;
-  updateStaff: (id: string, updates: Partial<Omit<Staff, "id">>) => void;
-  deleteStaff: (id: string) => void;
-  addStaffTask: (staffId: string, task: Omit<Task, "id">) => void;
-  updateStaffTask: (staffId: string, taskId: string, updates: Partial<Task>) => void;
-  deleteStaffTask: (staffId: string, taskId: string) => void;
-  addStaffAttendance: (staffId: string, record: AttendanceRecord) => void;
-  addClass: (cls: Omit<ClassItem, "id">) => void;
-  updateClass: (id: string, updates: Partial<Omit<ClassItem, "id">>) => void;
-  deleteClass: (id: string) => void;
-  updateClassSchedule: (id: string, schedule: ClassItem["schedule"]) => void;
-  setClassTeacher: (classId: string, teacherId: string | "") => void;
-  addClassAdExpense: (classId: string, expense: Omit<AdExpense, "id">) => void;
-  deleteClassAdExpense: (classId: string, expenseId: string) => void;
-  addPayment: (payment: Omit<Payment, "id">) => void;
-  updatePayment: (id: string, updates: Partial<Omit<Payment, "id">>) => void;
-  deletePayment: (id: string) => void;
-  addMarketingClass: (cls: Omit<MarketingClass, "id">) => void;
-  updateMarketingClass: (id: string, updates: Partial<Omit<MarketingClass, "id">>) => void;
-  deleteMarketingClass: (id: string) => void;
-  addMarketingExpense: (classId: string, expense: Omit<MarketingExpense, "id">) => void;
-  deleteMarketingExpense: (classId: string, expenseId: string) => void;
-  enrollStudentInMarketingClass: (studentId: string, classId: string) => void;
-  unenrollStudentFromMarketingClass: (studentId: string, classId: string) => void;
-  addTeacherToMarketingClass: (teacherId: string, classId: string) => void;
-  removeTeacherFromMarketingClass: (teacherId: string, classId: string) => void;
-  addCustomExpense: (expense: Omit<CustomExpense, "id">) => void;
-  deleteCustomExpense: (id: string) => void;
-  addUser: (user: Omit<User, "id">) => void;
-  updateUser: (id: string, updates: Partial<Omit<User, "id">>) => void;
-  deleteUser: (id: string) => void;
+  addStudent: (student: Omit<Student, "id">) => Promise<void>;
+  updateStudent: (id: string, updates: Partial<Omit<Student, "id">>) => Promise<void>;
+  deleteStudent: (id: string) => Promise<void>;
+  enrollStudentInClass: (studentId: string, classId: string) => Promise<void>;
+  unenrollStudentFromClass: (studentId: string, classId: string) => Promise<void>;
+  addStudentTask: (studentId: string, task: Omit<Task, "id">) => Promise<void>;
+  updateStudentTask: (studentId: string, taskId: string, updates: Partial<Task>) => Promise<void>;
+  deleteStudentTask: (studentId: string, taskId: string) => Promise<void>;
+  addStudentAttendance: (studentId: string, record: AttendanceRecord) => Promise<void>;
+  addTeacher: (teacher: Omit<Teacher, "id">) => Promise<void>;
+  updateTeacher: (id: string, updates: Partial<Omit<Teacher, "id">>) => Promise<void>;
+  deleteTeacher: (id: string) => Promise<void>;
+  addTeacherAttendance: (teacherId: string, record: AttendanceRecord) => Promise<void>;
+  addStaff: (staff: Omit<Staff, "id">) => Promise<void>;
+  updateStaff: (id: string, updates: Partial<Omit<Staff, "id">>) => Promise<void>;
+  deleteStaff: (id: string) => Promise<void>;
+  addStaffTask: (staffId: string, task: Omit<Task, "id">) => Promise<void>;
+  updateStaffTask: (staffId: string, taskId: string, updates: Partial<Task>) => Promise<void>;
+  deleteStaffTask: (staffId: string, taskId: string) => Promise<void>;
+  addStaffAttendance: (staffId: string, record: AttendanceRecord) => Promise<void>;
+  addClass: (cls: Omit<ClassItem, "id">) => Promise<void>;
+  updateClass: (id: string, updates: Partial<Omit<ClassItem, "id">>) => Promise<void>;
+  deleteClass: (id: string) => Promise<void>;
+  updateClassSchedule: (id: string, schedule: ClassItem["schedule"]) => Promise<void>;
+  setClassTeacher: (classId: string, teacherId: string | "") => Promise<void>;
+  addClassAdExpense: (classId: string, expense: Omit<AdExpense, "id">) => Promise<void>;
+  deleteClassAdExpense: (classId: string, expenseId: string) => Promise<void>;
+  addPayment: (payment: Omit<Payment, "id">) => Promise<void>;
+  updatePayment: (id: string, updates: Partial<Omit<Payment, "id">>) => Promise<void>;
+  deletePayment: (id: string) => Promise<void>;
+  addMarketingClass: (cls: Omit<MarketingClass, "id">) => Promise<void>;
+  updateMarketingClass: (id: string, updates: Partial<Omit<MarketingClass, "id">>) => Promise<void>;
+  deleteMarketingClass: (id: string) => Promise<void>;
+  addMarketingExpense: (classId: string, expense: Omit<MarketingExpense, "id">) => Promise<void>;
+  deleteMarketingExpense: (classId: string, expenseId: string) => Promise<void>;
+  enrollStudentInMarketingClass: (studentId: string, classId: string) => Promise<void>;
+  unenrollStudentFromMarketingClass: (studentId: string, classId: string) => Promise<void>;
+  addTeacherToMarketingClass: (teacherId: string, classId: string) => Promise<void>;
+  removeTeacherFromMarketingClass: (teacherId: string, classId: string) => Promise<void>;
+  addCustomExpense: (expense: Omit<CustomExpense, "id">) => Promise<void>;
+  deleteCustomExpense: (id: string) => Promise<void>;
+  addUser: (user: Omit<User, "id">) => Promise<void>;
+  updateUser: (id: string, updates: Partial<Omit<User, "id">>) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
   getUserByUsername: (username: string) => User | undefined;
-  addClassroom: (classroom: Omit<Classroom, "id">) => void;
-  updateClassroom: (id: string, updates: Partial<Omit<Classroom, "id">>) => void;
-  deleteClassroom: (id: string) => void;
+  addClassroom: (classroom: Omit<Classroom, "id">) => Promise<void>;
+  updateClassroom: (id: string, updates: Partial<Omit<Classroom, "id">>) => Promise<void>;
+  deleteClassroom: (id: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextValue | null>(null);
 
-function generateId(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+// Helper function to get CSRF token
+async function getCsrfToken(): Promise<string> {
+  const response = await fetch('/api/auth/csrf');
+  const data = await response.json();
+  return data.token;
+}
+
+// Helper function to make authenticated API calls
+async function apiCall(url: string, options: RequestInit = {}): Promise<Response> {
+  const csrfToken = await getCsrfToken();
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-csrf-token': csrfToken,
+      ...options.headers,
+    },
+    credentials: 'include',
+  });
 }
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  // Start with empty data - all data should be managed through MySQL database
   const [data, setDataState] = useState<SchoolYardData>(emptyData);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch all data from APIs
+  const fetchAllData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [studentsRes, teachersRes, staffRes, classesRes, paymentsRes, marketingRes, classroomsRes, expensesRes] = await Promise.all([
+        fetch('/api/students').then(r => r.json()),
+        fetch('/api/teachers').then(r => r.json()),
+        fetch('/api/staff').then(r => r.json()),
+        fetch('/api/classes').then(r => r.json()),
+        fetch('/api/payments').then(r => r.json()),
+        fetch('/api/marketing/classes').then(r => r.json()),
+        fetch('/api/classrooms').then(r => r.json()),
+        fetch('/api/expenses').then(r => r.json()),
+      ]);
+
+      setDataState({
+        students: studentsRes.success ? studentsRes.students : [],
+        teachers: teachersRes.success ? teachersRes.teachers : [],
+        staff: staffRes.success ? staffRes.staff : [],
+        classes: classesRes.success ? classesRes.classes : [],
+        payments: paymentsRes.success ? paymentsRes.payments : [],
+        marketingClasses: marketingRes.success ? marketingRes.classes : [],
+        customExpenses: expensesRes.success ? expensesRes.expenses : [],
+        users: [], // Users are managed separately via /api/admin/users
+        classrooms: classroomsRes.success ? classroomsRes.classrooms : [],
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch data';
+      setError(errorMessage);
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  const refresh = useCallback(async () => {
+    await fetchAllData();
+  }, [fetchAllData]);
 
   const setData = (updater: (prev: SchoolYardData) => SchoolYardData) => {
     setDataState((prev) => updater(prev));
   };
 
-  const addStudent = (student: Omit<Student, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      students: [...prev.students, { ...student, id: generateId("stu") }],
-    }));
-  };
-
-  const updateStudent = (id: string, updates: Partial<Omit<Student, "id">>) => {
-    setData((prev) => ({
-      ...prev,
-      students: prev.students.map((s) => (s.id === id ? { ...s, ...updates } : s)),
-    }));
-  };
-
-  const deleteStudent = (id: string) => {
-    setData((prev) => ({
-      ...prev,
-      students: prev.students.filter((s) => s.id !== id),
-      classes: prev.classes.map((c) => ({
-        ...c,
-        studentIds: c.studentIds.filter((sid) => sid !== id),
-      })),
-      payments: prev.payments.filter((p) => p.studentId !== id),
-    }));
-  };
-
-  const enrollStudentInClass = (studentId: string, classId: string) => {
-    setData((prev) => {
-      const student = prev.students.find((s) => s.id === studentId);
-      const cls = prev.classes.find((c) => c.id === classId);
-      if (!student || !cls) return prev;
-      const alreadyEnrolled = student.classes.includes(classId) || cls.studentIds.includes(studentId);
-      if (alreadyEnrolled) return prev;
-
-      const updatedStudents = prev.students.map((s) =>
-        s.id === studentId ? { ...s, classes: [...s.classes, classId] } : s
-      );
-      const updatedClasses = prev.classes.map((c) =>
-        c.id === classId ? { ...c, studentIds: [...c.studentIds, studentId] } : c
-      );
-
-      const hasPendingForEnrollment = prev.payments.some(
-        (p) => p.type === "student" && p.studentId === studentId && p.classId === classId && p.status === "pending"
-      );
-      const newPayment: Payment | null = hasPendingForEnrollment
-        ? null
-        : { 
-            id: generateId("pay"), 
-            amount: cls.fees, 
-            status: "pending", 
-            type: "student",
-            studentId, 
-            classId,
-            date: new Date().toISOString(),
-          };
-
-      return {
-        ...prev,
-        students: updatedStudents,
-        classes: updatedClasses,
-        payments: newPayment ? [...prev.payments, newPayment] : prev.payments,
-      };
-    });
-  };
-
-  const unenrollStudentFromClass = (studentId: string, classId: string) => {
-    setData((prev) => {
-      const updatedStudents = prev.students.map((s) =>
-        s.id === studentId ? { ...s, classes: s.classes.filter((cid) => cid !== classId) } : s
-      );
-      const updatedClasses = prev.classes.map((c) =>
-        c.id === classId ? { ...c, studentIds: c.studentIds.filter((sid) => sid !== studentId) } : c
-      );
-
-      // Remove only pending payments for this enrollment
-      const updatedPayments = prev.payments.filter(
-        (p) => !(p.studentId === studentId && p.classId === classId && p.status === "pending")
-      );
-
-      return { ...prev, students: updatedStudents, classes: updatedClasses, payments: updatedPayments };
-    });
-  };
-
-  const addTeacher = (teacher: Omit<Teacher, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      teachers: [...prev.teachers, { ...teacher, id: generateId("tch") }],
-    }));
-  };
-
-  const updateTeacher = (id: string, updates: Partial<Omit<Teacher, "id">>) => {
-    setData((prev) => ({
-      ...prev,
-      teachers: prev.teachers.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-    }));
-  };
-
-  const deleteTeacher = (id: string) => {
-    setData((prev) => ({
-      ...prev,
-      teachers: prev.teachers.filter((t) => t.id !== id),
-      classes: prev.classes.map((c) => (c.teacherId === id ? { ...c, teacherId: "" } : c)),
-    }));
-  };
-
-  const addClass = (cls: Omit<ClassItem, "id">) => {
-    setData((prev) => {
-      const newId = generateId("cls");
-      const newClass: ClassItem = { ...cls, id: newId } as ClassItem;
-      const updatedTeachers = prev.teachers.map((t) =>
-        t.id === newClass.teacherId ? { ...t, classes: [...t.classes, newId] } : t
-      );
-      return { ...prev, classes: [...prev.classes, newClass], teachers: updatedTeachers };
-    });
-  };
-
-  const updateClass = (id: string, updates: Partial<Omit<ClassItem, "id">>) => {
-    setData((prev) => {
-      const existing = prev.classes.find((c) => c.id === id);
-      if (!existing) return prev;
-      const nextClass: ClassItem = { ...existing, ...updates } as ClassItem;
-
-      let updatedTeachers = prev.teachers;
-      if (updates.teacherId !== undefined && updates.teacherId !== existing.teacherId) {
-        const oldTeacherId = existing.teacherId;
-        const newTeacherId = updates.teacherId;
-        updatedTeachers = prev.teachers.map((t) => {
-          if (t.id === oldTeacherId) {
-            return { ...t, classes: t.classes.filter((cid) => cid !== id) };
-          }
-          if (t.id === newTeacherId) {
-            return { ...t, classes: t.classes.includes(id) ? t.classes : [...t.classes, id] };
-          }
-          return t;
-        });
-      }
-
-      const updatedClasses = prev.classes.map((c) => (c.id === id ? nextClass : c));
-      return { ...prev, classes: updatedClasses, teachers: updatedTeachers };
-    });
-  };
-
-  const deleteClass = (id: string) => {
-    setData((prev) => {
-      const cls = prev.classes.find((c) => c.id === id);
-      const updatedTeachers = cls
-        ? prev.teachers.map((t) =>
-            t.id === cls.teacherId ? { ...t, classes: t.classes.filter((cid) => cid !== id) } : t
-          )
-        : prev.teachers;
-
-      const updatedPayments = prev.payments.filter((p) => p.classId !== id);
-
-      return {
-        ...prev,
-        classes: prev.classes.filter((c) => c.id !== id),
-        students: prev.students.map((s) => ({
-          ...s,
-          classes: s.classes.filter((cid) => cid !== id),
-        })),
-        teachers: updatedTeachers,
-        payments: updatedPayments,
-      };
-    });
-  };
-
-  const updateClassSchedule = (id: string, schedule: ClassItem["schedule"]) => {
-    setData((prev) => ({
-      ...prev,
-      classes: prev.classes.map((c) => (c.id === id ? { ...c, schedule } : c)),
-    }));
-  };
-
-  const setClassTeacher = (classId: string, teacherId: string | "") => {
-    setData((prev) => {
-      const cls = prev.classes.find((c) => c.id === classId);
-      if (!cls) return prev;
-      const oldTeacherId = cls.teacherId;
-      const updatedClasses = prev.classes.map((c) => (c.id === classId ? { ...c, teacherId } : c));
-      const updatedTeachers = prev.teachers.map((t) => {
-        if (t.id === oldTeacherId && oldTeacherId) {
-          return { ...t, classes: t.classes.filter((cid) => cid !== classId) };
-        }
-        if (teacherId && t.id === teacherId) {
-          return { ...t, classes: t.classes.includes(classId) ? t.classes : [...t.classes, classId] };
-        }
-        return t;
-      });
-      return { ...prev, classes: updatedClasses, teachers: updatedTeachers };
-    });
-  };
-
-  const addPayment = (payment: Omit<Payment, "id">) => {
-    setData((prev) => {
-      const newId = generateId("pay");
-      // Generate invoice number if status is paid
-      const invoiceNumber = payment.status === "paid" 
-        ? `INV-${Date.now().toString().slice(-6)}-${newId.slice(-4)}`
-        : undefined;
-      
-      const newPayment: Payment = {
-        ...payment,
-        id: newId,
-        date: payment.date || new Date().toISOString(),
-        invoiceNumber: payment.invoiceNumber || invoiceNumber,
-      };
-      
-      return {
-        ...prev,
-        payments: [...prev.payments, newPayment],
-      };
-    });
-  };
-
-  const updatePayment = (id: string, updates: Partial<Omit<Payment, "id">>) => {
-    setData((prev) => {
-      return {
-        ...prev,
-        payments: prev.payments.map((p) => {
-          if (p.id !== id) return p;
-          
-          // Generate invoice number if status is being changed to paid and doesn't have one
-          const statusUpdate = updates.status;
-          const shouldGenerateInvoice = statusUpdate === "paid" && !p.invoiceNumber;
-          const invoiceNumber = shouldGenerateInvoice 
-            ? `INV-${Date.now().toString().slice(-6)}-${p.id.slice(-4)}`
-            : p.invoiceNumber;
-          
-          return {
-            ...p,
-            ...updates,
-            invoiceNumber: updates.invoiceNumber || invoiceNumber,
-            date: updates.date || p.date || new Date().toISOString(),
-          };
+  // Students
+  const addStudent = async (student: Omit<Student, "id">) => {
+    try {
+      const response = await apiCall('/api/students', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...student,
+          classes: student.classes || [],
         }),
-      };
-    });
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Student added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add student');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add student');
+      throw err;
+    }
   };
 
-  const deletePayment = (id: string) => {
+  const updateStudent = async (id: string, updates: Partial<Omit<Student, "id">>) => {
+    try {
+      const response = await apiCall(`/api/students/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Student updated successfully');
+      } else {
+        throw new Error(result.error || 'Failed to update student');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update student');
+      throw err;
+    }
+  };
+
+  const deleteStudent = async (id: string) => {
+    try {
+      const response = await apiCall(`/api/students/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Student deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete student');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete student');
+      throw err;
+    }
+  };
+
+  const enrollStudentInClass = async (studentId: string, classId: string) => {
+    try {
+      const response = await apiCall(`/api/classes/${classId}/students`, {
+        method: 'POST',
+        body: JSON.stringify({ studentId }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Failed to enroll student');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to enroll student');
+      throw err;
+    }
+  };
+
+  const unenrollStudentFromClass = async (studentId: string, classId: string) => {
+    try {
+      const response = await apiCall(`/api/classes/${classId}/students?studentId=${studentId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Failed to unenroll student');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to unenroll student');
+      throw err;
+    }
+  };
+
+  const addStudentTask = async (studentId: string, task: Omit<Task, "id">) => {
+    try {
+      const response = await apiCall(`/api/students/${studentId}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify(task),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Task added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add task');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add task');
+      throw err;
+    }
+  };
+
+  const updateStudentTask = async (studentId: string, taskId: string, updates: Partial<Task>) => {
+    try {
+      const response = await apiCall(`/api/students/${studentId}/tasks/${taskId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Task updated successfully');
+      } else {
+        throw new Error(result.error || 'Failed to update task');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update task');
+      throw err;
+    }
+  };
+
+  const deleteStudentTask = async (studentId: string, taskId: string) => {
+    try {
+      const response = await apiCall(`/api/students/${studentId}/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Task deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete task');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete task');
+      throw err;
+    }
+  };
+
+  const addStudentAttendance = async (studentId: string, record: AttendanceRecord) => {
+    try {
+      const response = await apiCall(`/api/students/${studentId}/attendance`, {
+        method: 'POST',
+        body: JSON.stringify(record),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Failed to add attendance');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add attendance');
+      throw err;
+    }
+  };
+
+  // Teachers
+  const addTeacher = async (teacher: Omit<Teacher, "id">) => {
+    try {
+      const response = await apiCall('/api/teachers', {
+        method: 'POST',
+        body: JSON.stringify(teacher),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Teacher added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add teacher');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add teacher');
+      throw err;
+    }
+  };
+
+  const updateTeacher = async (id: string, updates: Partial<Omit<Teacher, "id">>) => {
+    try {
+      const response = await apiCall(`/api/teachers/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Teacher updated successfully');
+      } else {
+        throw new Error(result.error || 'Failed to update teacher');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update teacher');
+      throw err;
+    }
+  };
+
+  const deleteTeacher = async (id: string) => {
+    try {
+      const response = await apiCall(`/api/teachers/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Teacher deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete teacher');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete teacher');
+      throw err;
+    }
+  };
+
+  const addTeacherAttendance = async (teacherId: string, record: AttendanceRecord) => {
+    try {
+      const response = await apiCall(`/api/teachers/${teacherId}/attendance`, {
+        method: 'POST',
+        body: JSON.stringify(record),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Failed to add attendance');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add attendance');
+      throw err;
+    }
+  };
+
+  // Staff
+  const addStaff = async (staff: Omit<Staff, "id">) => {
+    try {
+      const response = await apiCall('/api/staff', {
+        method: 'POST',
+        body: JSON.stringify(staff),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Staff member added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add staff');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add staff');
+      throw err;
+    }
+  };
+
+  const updateStaff = async (id: string, updates: Partial<Omit<Staff, "id">>) => {
+    try {
+      const response = await apiCall(`/api/staff/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Staff member updated successfully');
+      } else {
+        throw new Error(result.error || 'Failed to update staff');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update staff');
+      throw err;
+    }
+  };
+
+  const deleteStaff = async (id: string) => {
+    try {
+      const response = await apiCall(`/api/staff/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Staff member deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete staff');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete staff');
+      throw err;
+    }
+  };
+
+  const addStaffTask = async (staffId: string, task: Omit<Task, "id">) => {
+    try {
+      const response = await apiCall(`/api/staff/${staffId}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify(task),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Task added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add task');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add task');
+      throw err;
+    }
+  };
+
+  const updateStaffTask = async (staffId: string, taskId: string, updates: Partial<Task>) => {
+    try {
+      const response = await apiCall(`/api/staff/${staffId}/tasks/${taskId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Task updated successfully');
+      } else {
+        throw new Error(result.error || 'Failed to update task');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update task');
+      throw err;
+    }
+  };
+
+  const deleteStaffTask = async (staffId: string, taskId: string) => {
+    try {
+      const response = await apiCall(`/api/staff/${staffId}/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Task deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete task');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete task');
+      throw err;
+    }
+  };
+
+  const addStaffAttendance = async (staffId: string, record: AttendanceRecord) => {
+    try {
+      const response = await apiCall(`/api/staff/${staffId}/attendance`, {
+        method: 'POST',
+        body: JSON.stringify(record),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Failed to add attendance');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add attendance');
+      throw err;
+    }
+  };
+
+  // Classes
+  const addClass = async (cls: Omit<ClassItem, "id">) => {
+    try {
+      const response = await apiCall('/api/classes', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...cls,
+          studentIds: cls.studentIds || [],
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Class added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add class');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add class');
+      throw err;
+    }
+  };
+
+  const updateClass = async (id: string, updates: Partial<Omit<ClassItem, "id">>) => {
+    try {
+      const response = await apiCall(`/api/classes/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Class updated successfully');
+      } else {
+        throw new Error(result.error || 'Failed to update class');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update class');
+      throw err;
+    }
+  };
+
+  const deleteClass = async (id: string) => {
+    try {
+      const response = await apiCall(`/api/classes/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Class deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete class');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete class');
+      throw err;
+    }
+  };
+
+  const updateClassSchedule = async (id: string, schedule: ClassItem["schedule"]) => {
+    await updateClass(id, { schedule });
+  };
+
+  const setClassTeacher = async (classId: string, teacherId: string | "") => {
+    await updateClass(classId, { teacherId: teacherId || undefined });
+  };
+
+  const addClassAdExpense = async (classId: string, expense: Omit<AdExpense, "id">) => {
+    try {
+      const response = await apiCall(`/api/classes/${classId}/expenses`, {
+        method: 'POST',
+        body: JSON.stringify(expense),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Expense added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add expense');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add expense');
+      throw err;
+    }
+  };
+
+  const deleteClassAdExpense = async (classId: string, expenseId: string) => {
+    try {
+      const response = await apiCall(`/api/classes/${classId}/expenses/${expenseId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Expense deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete expense');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete expense');
+      throw err;
+    }
+  };
+
+  // Payments
+  const addPayment = async (payment: Omit<Payment, "id">) => {
+    try {
+      const response = await apiCall('/api/payments', {
+        method: 'POST',
+        body: JSON.stringify(payment),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Payment added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add payment');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add payment');
+      throw err;
+    }
+  };
+
+  const updatePayment = async (id: string, updates: Partial<Omit<Payment, "id">>) => {
+    try {
+      const response = await apiCall(`/api/payments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Payment updated successfully');
+      } else {
+        throw new Error(result.error || 'Failed to update payment');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update payment');
+      throw err;
+    }
+  };
+
+  const deletePayment = async (id: string) => {
+    try {
+      const response = await apiCall(`/api/payments/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Payment deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete payment');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete payment');
+      throw err;
+    }
+  };
+
+  // Marketing Classes
+  const addMarketingClass = async (cls: Omit<MarketingClass, "id">) => {
+    try {
+      const response = await apiCall('/api/marketing/classes', {
+        method: 'POST',
+        body: JSON.stringify(cls),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Marketing class added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add marketing class');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add marketing class');
+      throw err;
+    }
+  };
+
+  const updateMarketingClass = async (id: string, updates: Partial<Omit<MarketingClass, "id">>) => {
+    try {
+      const response = await apiCall(`/api/marketing/classes/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Marketing class updated successfully');
+      } else {
+        throw new Error(result.error || 'Failed to update marketing class');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update marketing class');
+      throw err;
+    }
+  };
+
+  const deleteMarketingClass = async (id: string) => {
+    try {
+      const response = await apiCall(`/api/marketing/classes/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Marketing class deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete marketing class');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete marketing class');
+      throw err;
+    }
+  };
+
+  const addMarketingExpense = async (classId: string, expense: Omit<MarketingExpense, "id">) => {
+    try {
+      const response = await apiCall(`/api/marketing/classes/${classId}/expenses`, {
+        method: 'POST',
+        body: JSON.stringify(expense),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Expense added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add expense');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add expense');
+      throw err;
+    }
+  };
+
+  const deleteMarketingExpense = async (classId: string, expenseId: string) => {
+    try {
+      const response = await apiCall(`/api/marketing/classes/${classId}/expenses/${expenseId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Expense deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete expense');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete expense');
+      throw err;
+    }
+  };
+
+  const enrollStudentInMarketingClass = async (studentId: string, classId: string) => {
+    try {
+      const response = await apiCall(`/api/marketing/classes/${classId}/students`, {
+        method: 'POST',
+        body: JSON.stringify({ studentId }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Failed to enroll student');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to enroll student');
+      throw err;
+    }
+  };
+
+  const unenrollStudentFromMarketingClass = async (studentId: string, classId: string) => {
+    try {
+      const response = await apiCall(`/api/marketing/classes/${classId}/students?studentId=${studentId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Failed to unenroll student');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to unenroll student');
+      throw err;
+    }
+  };
+
+  const addTeacherToMarketingClass = async (teacherId: string, classId: string) => {
+    try {
+      const response = await apiCall(`/api/marketing/classes/${classId}/teachers`, {
+        method: 'POST',
+        body: JSON.stringify({ teacherId }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Failed to add teacher');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add teacher');
+      throw err;
+    }
+  };
+
+  const removeTeacherFromMarketingClass = async (teacherId: string, classId: string) => {
+    try {
+      const response = await apiCall(`/api/marketing/classes/${classId}/teachers?teacherId=${teacherId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+      } else {
+        throw new Error(result.error || 'Failed to remove teacher');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove teacher');
+      throw err;
+    }
+  };
+
+  // Custom Expenses
+  const addCustomExpense = async (expense: Omit<CustomExpense, "id">) => {
+    try {
+      const response = await apiCall('/api/expenses', {
+        method: 'POST',
+        body: JSON.stringify(expense),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Expense added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add expense');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add expense');
+      throw err;
+    }
+  };
+
+  const deleteCustomExpense = async (id: string) => {
+    try {
+      const response = await apiCall(`/api/expenses/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Expense deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete expense');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete expense');
+      throw err;
+    }
+  };
+
+  // Users (still using local state for compatibility, but users are managed via /api/admin/users)
+  const addUser = async (user: Omit<User, "id">) => {
+    // Users are managed via /api/admin/users, this is kept for compatibility
     setData((prev) => ({
       ...prev,
-      payments: prev.payments.filter((p) => p.id !== id),
+      users: [...prev.users, { ...user, id: `usr-${Math.random().toString(36).slice(2, 9)}` }],
     }));
   };
 
-  const addClassAdExpense = (classId: string, expense: Omit<AdExpense, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      classes: prev.classes.map((c) =>
-        c.id === classId ? { ...c, adExpenses: [...c.adExpenses, { ...expense, id: generateId("ad") }] } : c
-      ),
-    }));
-  };
-
-  const deleteClassAdExpense = (classId: string, expenseId: string) => {
-    setData((prev) => ({
-      ...prev,
-      classes: prev.classes.map((c) =>
-        c.id === classId ? { ...c, adExpenses: c.adExpenses.filter((e) => e.id !== expenseId) } : c
-      ),
-    }));
-  };
-
-  const addStudentTask = (studentId: string, task: Omit<Task, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      students: prev.students.map((s) =>
-        s.id === studentId ? { ...s, tasks: [...s.tasks, { ...task, id: generateId("tsk") }] } : s
-      ),
-    }));
-  };
-
-  const updateStudentTask = (studentId: string, taskId: string, updates: Partial<Task>) => {
-    setData((prev) => ({
-      ...prev,
-      students: prev.students.map((s) =>
-        s.id === studentId
-          ? { ...s, tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, ...updates } : t)) }
-          : s
-      ),
-    }));
-  };
-
-  const deleteStudentTask = (studentId: string, taskId: string) => {
-    setData((prev) => ({
-      ...prev,
-      students: prev.students.map((s) =>
-        s.id === studentId ? { ...s, tasks: s.tasks.filter((t) => t.id !== taskId) } : s
-      ),
-    }));
-  };
-
-  const addStudentAttendance = (studentId: string, record: AttendanceRecord) => {
-    setData((prev) => ({
-      ...prev,
-      students: prev.students.map((s) => {
-        if (s.id !== studentId) return s;
-        // Check if attendance for this date already exists
-        const existingIndex = s.attendance.findIndex(a => a.date === record.date);
-        if (existingIndex >= 0) {
-          // Update existing record
-          const newAttendance = [...s.attendance];
-          newAttendance[existingIndex] = record;
-          return { ...s, attendance: newAttendance };
-        }
-        // Add new record
-        return { ...s, attendance: [...s.attendance, record] };
-      }),
-    }));
-  };
-
-  const addTeacherAttendance = (teacherId: string, record: AttendanceRecord) => {
-    setData((prev) => ({
-      ...prev,
-      teachers: prev.teachers.map((t) => {
-        if (t.id !== teacherId) return t;
-        // Check if attendance for this date already exists
-        const existingIndex = t.attendance.findIndex(a => a.date === record.date);
-        if (existingIndex >= 0) {
-          // Update existing record
-          const newAttendance = [...t.attendance];
-          newAttendance[existingIndex] = record;
-          return { ...t, attendance: newAttendance };
-        }
-        // Add new record
-        return { ...t, attendance: [...t.attendance, record] };
-      }),
-    }));
-  };
-
-  const addStaff = (staff: Omit<Staff, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      staff: [...prev.staff, { ...staff, id: generateId("stf") }],
-    }));
-  };
-
-  const updateStaff = (id: string, updates: Partial<Omit<Staff, "id">>) => {
-    setData((prev) => ({
-      ...prev,
-      staff: prev.staff.map((s) => (s.id === id ? { ...s, ...updates } : s)),
-    }));
-  };
-
-  const deleteStaff = (id: string) => {
-    setData((prev) => ({
-      ...prev,
-      staff: prev.staff.filter((s) => s.id !== id),
-    }));
-  };
-
-  const addStaffTask = (staffId: string, task: Omit<Task, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      staff: prev.staff.map((s) =>
-        s.id === staffId ? { ...s, tasks: [...s.tasks, { ...task, id: generateId("tsk") }] } : s
-      ),
-    }));
-  };
-
-  const updateStaffTask = (staffId: string, taskId: string, updates: Partial<Task>) => {
-    setData((prev) => ({
-      ...prev,
-      staff: prev.staff.map((s) =>
-        s.id === staffId
-          ? { ...s, tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, ...updates } : t)) }
-          : s
-      ),
-    }));
-  };
-
-  const deleteStaffTask = (staffId: string, taskId: string) => {
-    setData((prev) => ({
-      ...prev,
-      staff: prev.staff.map((s) =>
-        s.id === staffId ? { ...s, tasks: s.tasks.filter((t) => t.id !== taskId) } : s
-      ),
-    }));
-  };
-
-  const addStaffAttendance = (staffId: string, record: AttendanceRecord) => {
-    setData((prev) => ({
-      ...prev,
-      staff: prev.staff.map((s) => {
-        if (s.id !== staffId) return s;
-        // Check if attendance for this date already exists
-        const existingIndex = s.attendance.findIndex(a => a.date === record.date);
-        if (existingIndex >= 0) {
-          // Update existing record
-          const newAttendance = [...s.attendance];
-          newAttendance[existingIndex] = record;
-          return { ...s, attendance: newAttendance };
-        }
-        // Add new record
-        return { ...s, attendance: [...s.attendance, record] };
-      }),
-    }));
-  };
-
-  const addMarketingClass = (cls: Omit<MarketingClass, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      marketingClasses: [...prev.marketingClasses, { ...cls, id: generateId("mkt") }],
-    }));
-  };
-
-  const updateMarketingClass = (id: string, updates: Partial<Omit<MarketingClass, "id">>) => {
-    setData((prev) => ({
-      ...prev,
-      marketingClasses: prev.marketingClasses.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-    }));
-  };
-
-  const deleteMarketingClass = (id: string) => {
-    setData((prev) => ({
-      ...prev,
-      marketingClasses: prev.marketingClasses.filter((c) => c.id !== id),
-    }));
-  };
-
-  const addMarketingExpense = (classId: string, expense: Omit<MarketingExpense, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      marketingClasses: prev.marketingClasses.map((c) =>
-        c.id === classId ? { ...c, expenses: [...c.expenses, { ...expense, id: generateId("exp") }] } : c
-      ),
-    }));
-  };
-
-  const deleteMarketingExpense = (classId: string, expenseId: string) => {
-    setData((prev) => ({
-      ...prev,
-      marketingClasses: prev.marketingClasses.map((c) =>
-        c.id === classId ? { ...c, expenses: c.expenses.filter((e) => e.id !== expenseId) } : c
-      ),
-    }));
-  };
-
-  const enrollStudentInMarketingClass = (studentId: string, classId: string) => {
-    setData((prev) => {
-      const cls = prev.marketingClasses.find((c) => c.id === classId);
-      if (!cls) return prev;
-      if (cls.studentIds.includes(studentId)) return prev;
-
-      return {
-        ...prev,
-        marketingClasses: prev.marketingClasses.map((c) =>
-          c.id === classId ? { ...c, studentIds: [...c.studentIds, studentId] } : c
-        ),
-      };
-    });
-  };
-
-  const unenrollStudentFromMarketingClass = (studentId: string, classId: string) => {
-    setData((prev) => ({
-      ...prev,
-      marketingClasses: prev.marketingClasses.map((c) =>
-        c.id === classId ? { ...c, studentIds: c.studentIds.filter((id) => id !== studentId) } : c
-      ),
-    }));
-  };
-
-  const addTeacherToMarketingClass = (teacherId: string, classId: string) => {
-    setData((prev) => {
-      const cls = prev.marketingClasses.find((c) => c.id === classId);
-      if (!cls) return prev;
-      if (cls.teacherIds.includes(teacherId)) return prev;
-
-      return {
-        ...prev,
-        marketingClasses: prev.marketingClasses.map((c) =>
-          c.id === classId ? { ...c, teacherIds: [...c.teacherIds, teacherId] } : c
-        ),
-      };
-    });
-  };
-
-  const removeTeacherFromMarketingClass = (teacherId: string, classId: string) => {
-    setData((prev) => ({
-      ...prev,
-      marketingClasses: prev.marketingClasses.map((c) =>
-        c.id === classId ? { ...c, teacherIds: c.teacherIds.filter((id) => id !== teacherId) } : c
-      ),
-    }));
-  };
-
-  const addCustomExpense = (expense: Omit<CustomExpense, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      customExpenses: [...prev.customExpenses, { ...expense, id: generateId("exp") }],
-    }));
-  };
-
-  const deleteCustomExpense = (id: string) => {
-    setData((prev) => ({
-      ...prev,
-      customExpenses: prev.customExpenses.filter((e) => e.id !== id),
-    }));
-  };
-
-  const addUser = (user: Omit<User, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      users: [...prev.users, { ...user, id: generateId("usr") }],
-    }));
-  };
-
-  const updateUser = (id: string, updates: Partial<Omit<User, "id">>) => {
+  const updateUser = async (id: string, updates: Partial<Omit<User, "id">>) => {
+    // Users are managed via /api/admin/users, this is kept for compatibility
     setData((prev) => ({
       ...prev,
       users: prev.users.map((u) => (u.id === id ? { ...u, ...updates } : u)),
     }));
   };
 
-  const deleteUser = (id: string) => {
+  const deleteUser = async (id: string) => {
+    // Users are managed via /api/admin/users, this is kept for compatibility
     setData((prev) => ({
       ...prev,
       users: prev.users.filter((u) => u.id !== id),
@@ -597,31 +906,69 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return data.users.find((u) => u.username === username);
   };
 
-  const addClassroom = (classroom: Omit<Classroom, "id">) => {
-    setData((prev) => ({
-      ...prev,
-      classrooms: [...prev.classrooms, { ...classroom, id: generateId("room") }],
-    }));
+  // Classrooms
+  const addClassroom = async (classroom: Omit<Classroom, "id">) => {
+    try {
+      const response = await apiCall('/api/classrooms', {
+        method: 'POST',
+        body: JSON.stringify(classroom),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Classroom added successfully');
+      } else {
+        throw new Error(result.error || 'Failed to add classroom');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add classroom');
+      throw err;
+    }
   };
 
-  const updateClassroom = (id: string, updates: Partial<Omit<Classroom, "id">>) => {
-    setData((prev) => ({
-      ...prev,
-      classrooms: prev.classrooms.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-    }));
+  const updateClassroom = async (id: string, updates: Partial<Omit<Classroom, "id">>) => {
+    try {
+      const response = await apiCall(`/api/classrooms/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Classroom updated successfully');
+      } else {
+        throw new Error(result.error || 'Failed to update classroom');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update classroom');
+      throw err;
+    }
   };
 
-  const deleteClassroom = (id: string) => {
-    setData((prev) => ({
-      ...prev,
-      classrooms: prev.classrooms.filter((c) => c.id !== id),
-      classes: prev.classes.map((c) => (c.classroomId === id ? { ...c, classroomId: undefined } : c)),
-    }));
+  const deleteClassroom = async (id: string) => {
+    try {
+      const response = await apiCall(`/api/classrooms/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        await refresh();
+        toast.success('Classroom deleted successfully');
+      } else {
+        throw new Error(result.error || 'Failed to delete classroom');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete classroom');
+      throw err;
+    }
   };
 
   const value = useMemo<DataContextValue>(
     () => ({
       data,
+      loading,
+      error,
+      refresh,
       setData,
       addStudent,
       updateStudent,
@@ -672,7 +1019,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       updateClassroom,
       deleteClassroom,
     }),
-    [data]
+    [data, loading, error, refresh]
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
@@ -683,5 +1030,3 @@ export function useData() {
   if (!ctx) throw new Error("useData must be used within DataProvider");
   return ctx;
 }
-
-

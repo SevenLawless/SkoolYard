@@ -1,0 +1,163 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { initDatabase, queryOne, getPool } from '@/lib/db/connection';
+import { verifyAccessToken } from '@/lib/auth/jwt';
+import { logAuditEvent, getClientIp, getUserAgent } from '@/lib/audit/logger';
+
+// Initialize database on module load
+if (typeof window === 'undefined') {
+  try {
+    initDatabase();
+  } catch (error) {
+    console.error('Database initialization error:', error);
+  }
+}
+
+/**
+ * PUT /api/students/[id]/tasks/[taskId]
+ * Update a student task
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; taskId: string }> }
+) {
+  try {
+    initDatabase();
+    const { id, taskId } = await params;
+
+    // Verify authentication
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('access_token')?.value;
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    const payload = verifyAccessToken(accessToken);
+    if (!payload || payload.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    // Verify task belongs to student
+    const task = await queryOne<{ student_id: string }>(
+      `SELECT student_id FROM student_tasks WHERE id = ?`,
+      [taskId]
+    );
+
+    if (!task || task.student_id !== id) {
+      return NextResponse.json(
+        { error: 'Task not found' },
+        { status: 404 }
+      );
+    }
+
+    const body = await request.json();
+    const { title, description, dueDate, completed, assignedBy } = body;
+
+    const pool = getPool();
+
+    await pool.execute(
+      `UPDATE student_tasks
+       SET title = ?, description = ?, due_date = ?, completed = ?, assigned_by = ?
+       WHERE id = ?`,
+      [
+        title,
+        description || null,
+        dueDate || null,
+        completed || false,
+        assignedBy || null,
+        taskId,
+      ]
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: 'Task updated successfully',
+    });
+  } catch (error) {
+    console.error('Update student task error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/students/[id]/tasks/[taskId]
+ * Delete a student task
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; taskId: string }> }
+) {
+  try {
+    initDatabase();
+    const { id, taskId } = await params;
+
+    // Verify authentication
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('access_token')?.value;
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    const payload = verifyAccessToken(accessToken);
+    if (!payload || payload.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    // Verify task belongs to student
+    const task = await queryOne<{ student_id: string }>(
+      `SELECT student_id FROM student_tasks WHERE id = ?`,
+      [taskId]
+    );
+
+    if (!task || task.student_id !== id) {
+      return NextResponse.json(
+        { error: 'Task not found' },
+        { status: 404 }
+      );
+    }
+
+    const pool = getPool();
+
+    await pool.execute(
+      `DELETE FROM student_tasks WHERE id = ?`,
+      [taskId]
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: 'Task deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete student task error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
+      { status: 500 }
+    );
+  }
+}
+
