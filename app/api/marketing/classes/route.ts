@@ -81,7 +81,14 @@ export async function GET() {
     );
 
     // Group expenses by class
-    const expensesByClass = new Map<string, any[]>();
+    const expensesByClass = new Map<string, Array<{
+      id: string;
+      date: string;
+      amount: number;
+      category: string;
+      description: string;
+      type: 'in' | 'out';
+    }>>();
 
     expenses.forEach((exp) => {
       if (!expensesByClass.has(exp.marketing_class_id)) {

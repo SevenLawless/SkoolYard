@@ -84,8 +84,17 @@ export async function GET() {
     );
 
     // Group tasks and attendance by staff
-    const tasksByStaff = new Map<string, any[]>();
-    const attendanceByStaff = new Map<string, any[]>();
+    const tasksByStaff = new Map<string, Array<{
+      id: string;
+      title: string;
+      description: string;
+      dueDate: string;
+      completed: boolean;
+    }>>();
+    const attendanceByStaff = new Map<string, Array<{
+      date: string;
+      status: 'present' | 'absent' | 'excused';
+    }>>();
 
     staffTasks.forEach((task) => {
       if (!tasksByStaff.has(task.staff_id)) {

@@ -83,7 +83,10 @@ export async function GET() {
 
     // Group classes and attendance by teacher
     const classesByTeacher = new Map<string, string[]>();
-    const attendanceByTeacher = new Map<string, any[]>();
+    const attendanceByTeacher = new Map<string, Array<{
+      date: string;
+      status: 'present' | 'absent' | 'excused';
+    }>>();
 
     teacherClasses.forEach((cls) => {
       if (cls.teacher_id) {

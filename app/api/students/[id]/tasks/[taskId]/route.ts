@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { initDatabase, queryOne, getPool } from '@/lib/db/connection';
 import { verifyAccessToken } from '@/lib/auth/jwt';
-import { logAuditEvent, getClientIp, getUserAgent } from '@/lib/audit/logger';
 
 // Initialize database on module load
 if (typeof window === 'undefined') {

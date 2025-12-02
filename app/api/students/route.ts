@@ -99,8 +99,18 @@ export async function GET() {
 
     // Group classes, tasks, and attendance by student
     const classesByStudent = new Map<string, string[]>();
-    const tasksByStudent = new Map<string, any[]>();
-    const attendanceByStudent = new Map<string, any[]>();
+    const tasksByStudent = new Map<string, Array<{
+      id: string;
+      title: string;
+      description: string;
+      dueDate: string;
+      completed: boolean;
+      assignedBy?: string;
+    }>>();
+    const attendanceByStudent = new Map<string, Array<{
+      date: string;
+      status: 'present' | 'absent' | 'excused';
+    }>>();
 
     studentClasses.forEach((sc) => {
       if (!classesByStudent.has(sc.student_id)) {
@@ -242,7 +252,7 @@ export async function POST(request: NextRequest) {
              VALUES (?, ?, NOW())`,
             [studentId, classId]
           );
-        } catch (error) {
+        } catch {
           // Ignore duplicate entries
           console.warn(`Student ${studentId} already enrolled in class ${classId}`);
         }

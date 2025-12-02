@@ -88,7 +88,13 @@ export async function GET() {
 
     // Group students and expenses by class
     const studentsByClass = new Map<string, string[]>();
-    const expensesByClass = new Map<string, any[]>();
+    const expensesByClass = new Map<string, Array<{
+      id: string;
+      date: string;
+      amount: number;
+      platform: string;
+      description?: string;
+    }>>();
 
     studentClasses.forEach((sc) => {
       if (!studentsByClass.has(sc.class_id)) {
@@ -253,7 +259,7 @@ export async function POST(request: NextRequest) {
              VALUES (?, ?, NOW())`,
             [studentId, classId]
           );
-        } catch (error) {
+        } catch {
           // Ignore duplicate entries
           console.warn(`Student ${studentId} already enrolled in class ${classId}`);
         }
