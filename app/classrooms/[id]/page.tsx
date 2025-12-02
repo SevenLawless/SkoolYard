@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useData } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -13,12 +13,6 @@ export default function ClassroomSchedulePage() {
   const { hasPermission } = useAuth();
   const canView = hasPermission("viewClasses");
   const classroomId = params?.id as string;
-  const [currentWeek, setCurrentWeek] = useState(() => {
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
-    return startOfWeek;
-  });
 
   const classroom = useMemo(() => {
     return data.classrooms.find((c) => c.id === classroomId);
@@ -40,54 +34,24 @@ export default function ClassroomSchedulePage() {
 
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-  // Get the date for a specific day index in the current week
-  const getDateForDay = (dayIndex: number) => {
-    const date = new Date(currentWeek);
-    date.setDate(currentWeek.getDate() + dayIndex);
-    return date.toISOString().split('T')[0]; // YYYY-MM-DD format
-  };
-
   // Get classes for a specific day and time slot
   const getClassesForSlot = (dayIndex: number, time: string) => {
-    const dayDate = getDateForDay(dayIndex);
-    const slotTime = time.split(':').slice(0, 2).join(':');
-    const seenClasses = new Set<string>();
-    const result: typeof classesInRoom = [];
-    
-    classesInRoom.forEach((cls) => {
-      // Skip if we've already added this class for this slot
-      if (seenClasses.has(cls.id)) return;
-      
-      // Check for recurring classes (daysOfWeek + time)
-      if (cls.daysOfWeek && cls.daysOfWeek.length > 0 && cls.time) {
-        const classTime = cls.time.split(':').slice(0, 2).join(':');
-        const dayMatches = cls.daysOfWeek.includes(dayIndex);
-        const timeMatches = classTime === slotTime;
-        
-        if (dayMatches && timeMatches) {
-          result.push(cls);
-          seenClasses.add(cls.id);
-          return;
-        }
+    return classesInRoom.filter((cls) => {
+      // Check if class has required schedule info
+      if (!cls.daysOfWeek || cls.daysOfWeek.length === 0 || !cls.time) {
+        return false;
       }
       
-      // Check for one-time sessions from schedule array
-      // Only show if the date matches the current day
-      if (cls.schedule && cls.schedule.length > 0) {
-        const oneTimeSession = cls.schedule.find(s => {
-          const sessionDate = s.date.split('T')[0]; // Handle both date strings and ISO strings
-          const sessionTime = s.time.split(':').slice(0, 2).join(':');
-          return sessionDate === dayDate && sessionTime === slotTime;
-        });
-        
-        if (oneTimeSession) {
-          result.push(cls);
-          seenClasses.add(cls.id);
-        }
-      }
+      // Normalize time format (handle both "14:00" and "14:00:00")
+      const classTime = cls.time.split(':').slice(0, 2).join(':');
+      const slotTime = time.split(':').slice(0, 2).join(':');
+      
+      // Check if day matches and time matches
+      const dayMatches = cls.daysOfWeek.includes(dayIndex);
+      const timeMatches = classTime === slotTime;
+      
+      return dayMatches && timeMatches;
     });
-    
-    return result;
   };
 
   if (!canView) {
@@ -161,46 +125,6 @@ export default function ClassroomSchedulePage() {
         </div>
       </div>
 
-      {/* Week Navigation */}
-      <div className="card p-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              const newWeek = new Date(currentWeek);
-              newWeek.setDate(newWeek.getDate() - 7);
-              setCurrentWeek(newWeek);
-            }}
-            className="btn btn-sm btn-outline"
-          >
-            ← Prev Week
-          </button>
-          <button
-            onClick={() => setCurrentWeek(() => {
-              const now = new Date();
-              const startOfWeek = new Date(now);
-              startOfWeek.setDate(now.getDate() - now.getDay());
-              return startOfWeek;
-            })}
-            className="btn btn-sm btn-outline"
-          >
-            This Week
-          </button>
-          <button
-            onClick={() => {
-              const newWeek = new Date(currentWeek);
-              newWeek.setDate(newWeek.getDate() + 7);
-              setCurrentWeek(newWeek);
-            }}
-            className="btn btn-sm btn-outline"
-          >
-            Next Week →
-          </button>
-        </div>
-        <div className="text-sm text-gray-600">
-          Week of {currentWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-        </div>
-      </div>
-
       {/* Schedule Grid */}
       <div className="card p-6 overflow-x-auto">
         <div className="min-w-full">
@@ -208,18 +132,11 @@ export default function ClassroomSchedulePage() {
             <thead>
               <tr>
                 <th className="border border-gray-300 p-2 bg-gray-100 text-left font-semibold text-sm sticky left-0 bg-gray-100 z-10">Time</th>
-                {dayNames.map((day, index) => {
-                  const dayDate = getDateForDay(index);
-                  const dateObj = new Date(dayDate);
-                  return (
-                    <th key={index} className="border border-gray-300 p-2 bg-gray-100 text-center font-semibold text-sm min-w-[180px]">
-                      <div>{day}</div>
-                      <div className="text-xs font-normal text-gray-600 mt-1">
-                        {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </div>
-                    </th>
-                  );
-                })}
+                {dayNames.map((day, index) => (
+                  <th key={index} className="border border-gray-300 p-2 bg-gray-100 text-center font-semibold text-sm min-w-[180px]">
+                    {day}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -228,42 +145,24 @@ export default function ClassroomSchedulePage() {
                   <td className="border border-gray-300 p-2 bg-gray-50 font-medium text-sm sticky left-0 bg-gray-50 z-10">{time}</td>
                   {dayNames.map((_, dayIndex) => {
                     const slotClasses = getClassesForSlot(dayIndex, time);
-                    const dayDate = getDateForDay(dayIndex);
                     return (
                       <td key={dayIndex} className="border border-gray-300 p-2 align-top min-h-[60px]">
                         {slotClasses.length > 0 ? (
                           <div className="space-y-2">
                             {slotClasses.map((cls) => {
                               const teacher = data.teachers.find((t) => t.id === cls.teacherId);
-                              // Check if this is a one-time session
-                              const isOneTime = cls.schedule && cls.schedule.some(s => {
-                                const sessionDate = s.date.split('T')[0];
-                                const sessionTime = s.time.split(':').slice(0, 2).join(':');
-                                const slotTime = time.split(':').slice(0, 2).join(':');
-                                return sessionDate === dayDate && sessionTime === slotTime;
-                              });
-                              
                               return (
                                 <div
-                                  key={`${cls.id}-${dayDate}-${time}`}
-                                  className={`${isOneTime ? 'bg-purple-100 border-2 border-purple-400' : 'bg-blue-100 border-2 border-blue-400'} rounded-lg p-3 cursor-pointer hover:opacity-80 transition-all shadow-sm`}
+                                  key={cls.id}
+                                  className="bg-blue-100 border-2 border-blue-400 rounded-lg p-3 cursor-pointer hover:bg-blue-200 hover:border-blue-500 transition-all shadow-sm"
                                   onClick={() => router.push(`/classes-v2/${cls.id}`)}
-                                  title={`Click to view ${cls.subject} details${isOneTime ? ' (One-time session)' : ''}`}
+                                  title={`Click to view ${cls.subject} details`}
                                 >
-                                  <div className="flex items-center gap-1 mb-1">
-                                    <div className={`font-bold ${isOneTime ? 'text-purple-900' : 'text-blue-900'} text-sm`}>
-                                      {cls.subject}
-                                    </div>
-                                    {isOneTime && (
-                                      <span className="text-xs bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded font-semibold">
-                                        One-Time
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className={`text-xs ${isOneTime ? 'text-purple-700' : 'text-blue-700'}`}>
+                                  <div className="font-bold text-blue-900 text-sm mb-1">{cls.subject}</div>
+                                  <div className="text-xs text-blue-700">
                                     👨‍🏫 {teacher?.name || "No teacher"}
                                   </div>
-                                  <div className={`text-xs ${isOneTime ? 'text-purple-600' : 'text-blue-600'} mt-1`}>
+                                  <div className="text-xs text-blue-600 mt-1">
                                     👥 {cls.studentIds.length} student{cls.studentIds.length !== 1 ? "s" : ""}
                                   </div>
                                 </div>

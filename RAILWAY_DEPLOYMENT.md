@@ -81,30 +81,114 @@ If Railway didn't auto-detect correctly:
 4. Set to: `npm start`
 5. **Root Directory**: Leave empty (unless your Next.js app is in a subdirectory)
 
-## Step 4: Environment Variables (if needed)
+## Step 4: Set Up MySQL Database
 
-### 4.1 Check for Required Variables
+### 4.1 Add MySQL Service
 
-Currently, SchoolYard uses in-memory data storage, so no database connection strings are needed. However, if you add features later that require environment variables:
+1. In your Railway project dashboard, click **"New"** button
+2. Select **"Database"** → **"Add MySQL"**
+3. Railway will automatically provision a MySQL database
+4. Wait for the database to be created (takes a few moments)
 
-1. Go to your service in Railway
+### 4.2 Get Database Connection String
+
+1. Click on the MySQL service you just created
+2. Go to the **"Variables"** tab
+3. Find the `MYSQL_URL` or `DATABASE_URL` variable
+4. Copy the connection string (format: `mysql://user:password@host:port/database`)
+
+**Note**: Railway automatically creates a `DATABASE_URL` environment variable that your application can use.
+
+## Step 5: Environment Variables
+
+### 5.1 Required Environment Variables
+
+SchoolYard now requires the following environment variables. Add them to your **Next.js service** (not the database service):
+
+1. Go to your Next.js service in Railway
 2. Click **"Variables"** tab
-3. Add any required environment variables
-4. Click **"Add"** for each variable
+3. Add the following variables:
 
-### 4.2 Common Next.js Variables
+#### Database Configuration
 
-If you need to configure Next.js:
+**Option A: Use Railway's DATABASE_URL (Recommended)**
+- Railway automatically provides `DATABASE_URL` from the MySQL service
+- If not automatically linked, add it manually:
+  - Variable: `DATABASE_URL`
+  - Value: Copy from MySQL service variables (format: `mysql://user:password@host:port/database`)
 
-- `NODE_ENV=production` (automatically set by Railway)
-- `PORT` (automatically set by Railway)
-- `NEXT_PUBLIC_*` (for client-side variables)
+**Option B: Use Individual Variables (Alternative)**
+- `DB_HOST` - MySQL host (from Railway MySQL service)
+- `DB_PORT` - MySQL port (usually 3306)
+- `DB_USER` - MySQL username
+- `DB_PASSWORD` - MySQL password
+- `DB_NAME` - Database name
 
-**Note**: Railway automatically sets `PORT` and `NODE_ENV`, so you don't need to configure these.
+#### Security Secrets
 
-## Step 5: Deploy
+Generate strong random strings for production. You can use:
+```bash
+# Generate random secrets (run in terminal)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
-### 5.1 Automatic Deployment
+- `JWT_SECRET` - Secret for signing JWT access tokens (generate a strong random string)
+- `JWT_REFRESH_SECRET` - Secret for signing JWT refresh tokens (generate a different strong random string)
+- `CSRF_SECRET` - Secret for CSRF token generation (generate a strong random string)
+
+#### Environment
+
+- `NODE_ENV=production` (automatically set by Railway, but you can verify)
+
+### 5.2 Example Environment Variables
+
+```
+DATABASE_URL=mysql://user:password@host:port/database
+JWT_SECRET=your-generated-secret-here
+JWT_REFRESH_SECRET=your-generated-refresh-secret-here
+CSRF_SECRET=your-generated-csrf-secret-here
+NODE_ENV=production
+```
+
+**Important**: Never commit these secrets to your repository. Railway handles them securely.
+
+### 5.3 Link Database to Application
+
+Railway should automatically link the MySQL service to your Next.js service, but if not:
+
+1. In your Next.js service, go to **"Settings"**
+2. Find **"Service Dependencies"** or **"Connections"**
+3. Link the MySQL service
+4. The `DATABASE_URL` should now be available
+
+## Step 6: Initialize Database
+
+### 6.1 Run Database Migration
+
+After your application is deployed, you need to initialize the database schema and migrate users:
+
+1. Once your application is running, visit: `https://your-app.railway.app/api/migrate`
+2. Or use Railway's CLI or API to trigger the migration endpoint
+3. The migration will:
+   - Create all required tables (users, sessions, password_reset_tokens, audit_logs)
+   - Migrate existing users from localStorage (if any) to MySQL
+   - Hash all passwords
+
+**Alternative**: You can also run the migration manually by executing the SQL schema:
+1. Connect to your Railway MySQL database using MySQL Workbench or any MySQL client
+2. Copy the contents of `lib/db/schema.sql`
+3. Execute it in your MySQL client
+
+### 6.2 Verify Database Setup
+
+After migration, verify the database:
+1. Connect to your MySQL database
+2. Check that tables exist: `SHOW TABLES;`
+3. Verify users table has data: `SELECT COUNT(*) FROM users;`
+
+## Step 7: Deploy
+
+### 7.1 Automatic Deployment
 
 Railway will automatically:
 1. Clone your repository
@@ -114,7 +198,7 @@ Railway will automatically:
 
 You can watch the deployment progress in the **"Deployments"** tab.
 
-### 5.2 Monitor Build Logs
+### 7.2 Monitor Build Logs
 
 1. Click on the active deployment
 2. View the build logs in real-time
@@ -125,16 +209,16 @@ You can watch the deployment progress in the **"Deployments"** tab.
 - **Port binding error**: Railway handles this automatically
 - **Memory issues**: Railway provides adequate memory for Next.js apps
 
-## Step 6: Configure Domain
+## Step 8: Configure Domain
 
-### 6.1 Get Your Railway Domain
+### 8.1 Get Your Railway Domain
 
 1. Go to your service **"Settings"**
 2. Scroll to **"Networking"** section
 3. Click **"Generate Domain"**
 4. Railway will provide a domain like: `your-app-name.up.railway.app`
 
-### 6.2 Custom Domain (Optional)
+### 8.2 Custom Domain (Optional)
 
 To use your own domain:
 
@@ -144,9 +228,9 @@ To use your own domain:
 4. Add the required DNS records to your domain provider
 5. Wait for DNS propagation (can take up to 24 hours)
 
-## Step 7: Verify Deployment
+## Step 9: Verify Deployment
 
-### 7.1 Test Your Application
+### 9.1 Test Your Application
 
 1. Click on the generated domain or use the **"Open"** button
 2. Verify the application loads correctly
@@ -156,16 +240,16 @@ To use your own domain:
    - Dashboard displays
    - Navigation works
 
-### 7.2 Check Logs
+### 9.2 Check Logs
 
 1. Go to **"Deployments"** tab
 2. Click on the latest deployment
 3. View **"Logs"** to see runtime logs
 4. Monitor for any errors or warnings
 
-## Step 8: Post-Deployment Configuration
+## Step 10: Post-Deployment Configuration
 
-### 8.1 Update Default Credentials (Recommended)
+### 10.1 Update Default Credentials (Recommended)
 
 ⚠️ **Security**: Change default credentials before going live:
 
@@ -176,7 +260,7 @@ To use your own domain:
 5. Change the password
 6. Consider creating new admin accounts and deleting the default one
 
-### 8.2 Set Up Monitoring (Optional)
+### 10.2 Set Up Monitoring (Optional)
 
 Railway provides:
 - **Metrics**: CPU, Memory, Network usage
@@ -185,9 +269,9 @@ Railway provides:
 
 Access these in your project dashboard.
 
-## Step 9: Continuous Deployment
+## Step 11: Continuous Deployment
 
-### 9.1 Automatic Deployments
+### 11.1 Automatic Deployments
 
 Railway automatically deploys when you push to your main branch:
 1. Push changes to GitHub
@@ -195,7 +279,7 @@ Railway automatically deploys when you push to your main branch:
 3. Automatically starts a new deployment
 4. Builds and deploys the new version
 
-### 9.2 Manual Deployments
+### 11.2 Manual Deployments
 
 To deploy a specific branch or commit:
 
@@ -204,7 +288,7 @@ To deploy a specific branch or commit:
 3. Change the branch if needed
 4. Or use **"Redeploy"** button to redeploy the current version
 
-### 9.3 Deployment History
+### 11.3 Deployment History
 
 View all deployments in the **"Deployments"** tab:
 - See deployment status (Success/Failed)
@@ -288,13 +372,17 @@ Railway caches `node_modules` between builds, but you can:
 
 ### 3. Database Considerations
 
-Currently, SchoolYard uses in-memory storage. If you plan to add a database:
+SchoolYard now uses MySQL for authentication and user management:
 
-1. Railway offers PostgreSQL, MySQL, MongoDB, and Redis
-2. Add a database service in your Railway project
-3. Get the connection string from the database service
-4. Add it as an environment variable
-5. Update your code to use the database
+1. ✅ MySQL is already configured (see Step 4)
+2. Database connection is handled via `DATABASE_URL` environment variable
+3. Railway automatically provides connection pooling
+4. Database migrations run automatically on first deployment via `/api/migrate` endpoint
+5. For production scaling, consider:
+   - Using Railway's MySQL service (already set up)
+   - Monitoring database connections
+   - Setting up database backups
+   - Using connection pooling (already implemented)
 
 ## Cost Considerations
 
@@ -370,5 +458,23 @@ Railway handles most of the complexity, making deployment as simple as connectin
 
 ---
 
-**Note**: This guide assumes you're deploying the current version of SchoolYard with in-memory data storage. If you add a database or other services later, you'll need to configure those separately in Railway.
+## Security Features
+
+SchoolYard now includes production-ready security features:
+
+- ✅ **Password Hashing**: All passwords are hashed using bcrypt
+- ✅ **JWT Tokens**: Secure token-based authentication
+- ✅ **Session Management**: Server-side session storage
+- ✅ **CSRF Protection**: Cross-site request forgery protection
+- ✅ **Rate Limiting**: Login attempts limited to 5 per 15 minutes
+- ✅ **Audit Logging**: All authentication events are logged
+- ✅ **Password Complexity**: Enforced password requirements
+- ✅ **Password Reset**: Token-based password reset functionality
+- ✅ **HTTPS**: Automatically provided by Railway
+
+**Note**: Make sure to:
+1. Set strong secrets for `JWT_SECRET`, `JWT_REFRESH_SECRET`, and `CSRF_SECRET`
+2. Run the database migration after first deployment
+3. Change default passwords immediately after deployment
+4. Review audit logs regularly for security monitoring
 

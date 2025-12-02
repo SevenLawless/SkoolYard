@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import type { User, StaffPermissions } from "@/lib/data";
+import type { StaffPermissions } from "@/lib/data";
 
 type AuthUser = {
   id: string;
@@ -17,8 +17,10 @@ type AuthUser = {
 
 type AuthContextValue = {
   user: AuthUser;
-  login: (username: string, password: string, users: User[]) => boolean;
-  logout: () => void;
+  login: (username: string, password: string, csrfToken: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  verify: () => Promise<void>;
+  loading: boolean;
   hasPermission: (permission: keyof StaffPermissions) => boolean;
   isAdmin: () => boolean;
   isStaff: () => boolean;
@@ -27,47 +29,73 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const AUTH_KEY = "schoolyard-auth";
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Verify session on mount
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(AUTH_KEY);
-      if (raw) setUser(JSON.parse(raw));
-    } catch {}
+    verify();
   }, []);
 
-  useEffect(() => {
+  const verify = useCallback(async () => {
     try {
-      if (user) window.localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-      else window.localStorage.removeItem(AUTH_KEY);
-    } catch {}
-  }, [user]);
+      setLoading(true);
+      const response = await fetch('/api/auth/verify', {
+        credentials: 'include',
+      });
 
-  const login = useCallback((username: string, password: string, users: User[]) => {
-    const foundUser = users.find((u) => u.username === username && u.password === password);
-    if (foundUser) {
-      const authUser: AuthUser = {
-        id: foundUser.id,
-        username: foundUser.username,
-        role: foundUser.role,
-        name: foundUser.name,
-        email: foundUser.email,
-        phone: foundUser.phone,
-        staffId: foundUser.staffId,
-        permissions: foundUser.permissions,
-        studentIds: foundUser.studentIds,
-      };
-      setUser(authUser);
-      return true;
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Verify error:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
-    return false;
   }, []);
 
-  const logout = useCallback(() => {
-    setUser(null);
+  const login = useCallback(async (username: string, password: string, csrfToken: string) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        return { success: true };
+      } else {
+        const error = await response.json();
+        return { success: false, error: error.error || 'Login failed' };
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, error: 'Network error' };
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+      setUser(null);
+    }
   }, []);
 
   const hasPermission = useCallback(
@@ -87,8 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isParent = useCallback(() => user?.role === "parent", [user]);
 
   const value = useMemo(
-    () => ({ user, login, logout, hasPermission, isAdmin, isStaff, isParent }),
-    [user, login, logout, hasPermission, isAdmin, isStaff, isParent]
+    () => ({ user, login, logout, verify, loading, hasPermission, isAdmin, isStaff, isParent }),
+    [user, login, logout, verify, loading, hasPermission, isAdmin, isStaff, isParent]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

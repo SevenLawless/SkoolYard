@@ -4,18 +4,27 @@ import { useEffect, useState } from "react";
 import Input from "@/components/Input";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { useData } from "@/lib/store";
+import { getPasswordRequirements } from "@/lib/auth/passwordValidation";
 
 export default function Home() {
   const router = useRouter();
-  const { user, login } = useAuth();
-  const { data } = useData();
+  const { user, login, loading } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get CSRF token on mount
+  useEffect(() => {
+    fetch('/api/auth/csrf')
+      .then((res) => res.json())
+      .then((data) => setCsrfToken(data.token))
+      .catch((err) => console.error('Failed to get CSRF token:', err));
+  }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && !loading) {
       // Redirect based on role
       if (user.role === "parent") {
         router.replace("/parent");
@@ -23,12 +32,24 @@ export default function Home() {
         router.replace("/dashboard");
       }
     }
-  }, [user, router]);
+  }, [user, loading, router]);
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const ok = login(username, password, data.users);
-    if (!ok) setError("Invalid credentials");
+    setError(null);
+    
+    if (!csrfToken) {
+      setError("CSRF token not loaded. Please refresh the page.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const result = await login(username, password, csrfToken);
+    setIsSubmitting(false);
+
+    if (!result.success) {
+      setError(result.error || "Invalid credentials");
+    }
   }
 
   return (
@@ -61,9 +82,17 @@ export default function Home() {
             required
           />
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          <button type="submit" className="mt-2 btn-primary">
-            Sign in
+          <button 
+            type="submit" 
+            className="mt-2 btn-primary"
+            disabled={isSubmitting || !csrfToken}
+          >
+            {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
+          <div className="mt-2 text-xs text-[var(--color-muted)]">
+            <p className="font-semibold mb-1">Password Requirements:</p>
+            <p>{getPasswordRequirements()}</p>
+          </div>
           <div className="mt-4 p-4 bg-blue-50 rounded-lg text-sm text-blue-900">
             <p className="font-semibold mb-3">Demo Credentials:</p>
             <div className="space-y-2">

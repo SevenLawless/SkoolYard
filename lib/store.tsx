@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import type { SchoolYardData, Student, Teacher, Staff, ClassItem, Payment, Task, AttendanceRecord, AdExpense, MarketingClass, MarketingExpense, CustomExpense, User, Classroom } from "@/lib/data";
-import { loadData, saveData, demoData } from "@/lib/data";
+import { emptyData } from "@/lib/data";
 
 type DataContextValue = {
   data: SchoolYardData;
@@ -64,16 +64,8 @@ function generateId(prefix: string): string {
 }
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setDataState] = useState<SchoolYardData>(demoData);
-
-  // Load from localStorage after mount to avoid SSR/CSR hydration mismatch
-  useEffect(() => {
-    setDataState(loadData());
-  }, []);
-
-  useEffect(() => {
-    saveData(data);
-  }, [data]);
+  // Start with empty data - all data should be managed through MySQL database
+  const [data, setDataState] = useState<SchoolYardData>(emptyData);
 
   const setData = (updater: (prev: SchoolYardData) => SchoolYardData) => {
     setDataState((prev) => updater(prev));
