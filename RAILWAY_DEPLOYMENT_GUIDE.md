@@ -452,82 +452,135 @@ When creating any user (including admins), the password must:
 
 ---
 
-## Password Reset Guide
+ 
 
 Password reset allows admins to generate reset tokens for any user. This is useful if you forget a password or need to reset a user's password.
 
-### Complete Password Reset Process
+### Complete Password Reset Process (Browser Console Method)
+
+**Where to run these commands**: 
+1. **Important**: Go to your actual Railway app URL (e.g., `https://skoolyard-production.up.railway.app` or your custom domain)
+   - ❌ **NOT** `railway.com` (that's the Railway website)
+   - ✅ **YES** your deployed app URL (check Railway dashboard → your service → "Settings" → "Domains")
+2. Once on your app, press **F12** (or right-click → Inspect)
+3. Go to the **Console** tab
+4. Paste these commands one at a time
 
 #### Step 1: Get CSRF Token
 
+Run this command in the browser console:
+
+```javascript
+fetch('/api/auth/csrf')
+  .then(r => r.json())
+  .then(data => {
+    window.csrfToken = data.token;
+    console.log('✅ CSRF Token stored in window.csrfToken');
+    console.log('Token length:', data.token.length);
+  })
+  .catch(err => console.error('Error:', err));
+```
+
+This stores the CSRF token in `window.csrfToken` so you don't have to copy/paste it manually.
+
+#### Step 2: Request Password Reset Token
+
+Run this command (replace `'admin'` with the username you want to reset):
+
+```javascript
+fetch('/api/auth/reset-password/request', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-csrf-token': window.csrfToken
+  },
+  body: JSON.stringify({username: 'admin'})
+})
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      window.resetToken = data.token;
+      console.log('✅ Reset token generated!');
+      console.log('Token stored in window.resetToken');
+      console.log('Token:', data.token);
+    } else {
+      console.error('❌ Error:', data.error || data);
+    }
+  })
+  .catch(err => console.error('Error:', err));
+```
+
+**⚠️ Important**: The reset token is stored in `window.resetToken`. Copy it if you need to use it later - it expires in 1 hour and can only be used once!
+
+#### Step 3: Confirm Password Reset
+
+Run this command (replace `'NewSecurePass123!'` with your desired password):
+
+```javascript
+fetch('/api/auth/reset-password/confirm', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-csrf-token': window.csrfToken
+  },
+  body: JSON.stringify({
+    token: window.resetToken,
+    newPassword: 'NewSecurePass123!'
+  })
+})
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      console.log('✅ Password reset successfully!');
+      console.log('You can now login with the new password.');
+    } else {
+      console.error('❌ Error:', data.error || data);
+    }
+  })
+  .catch(err => console.error('Error:', err));
+```
+
+**Password Requirements**: The new password must have:
+- At least 8 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one special character (!@#$%^&* etc.)
+
+#### Step 4: Login with New Password
+
+Go to the login page and use:
+- **Username**: The username you reset (e.g., `admin`)
+- **Password**: The new password you set in Step 3
+
+### Alternative: Using curl (Command Line)
+
+If you prefer using `curl` from your terminal (PowerShell on Windows, or Terminal on Mac/Linux):
+
+#### Step 1: Get CSRF Token
 ```bash
 curl https://your-app.railway.app/api/auth/csrf
 ```
 
-Response:
-```json
-{
-  "token": "abc123def456..."
-}
-```
-
-Copy this token - you'll need it for the next steps.
+Copy the token from the response.
 
 #### Step 2: Request Password Reset Token
-
-For a specific user by username:
 ```bash
 curl -X POST https://your-app.railway.app/api/auth/reset-password/request \
   -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: YOUR_CSRF_TOKEN_FROM_STEP_1" \
-  -d '{"username": "admin"}'
+  -H "x-csrf-token: YOUR_CSRF_TOKEN_FROM_STEP_1" \
+  -d "{\"username\": \"admin\"}"
 ```
-
-Or by user ID:
-```bash
-curl -X POST https://your-app.railway.app/api/auth/reset-password/request \
-  -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: YOUR_CSRF_TOKEN_FROM_STEP_1" \
-  -d '{"userId": "usr-1"}'
-```
-
-Response:
-```json
-{
-  "success": true,
-  "token": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
-  "message": "Password reset token generated. Use this token to reset your password."
-}
-```
-
-**⚠️ Important**: Copy the token immediately - it's only shown once and expires in 1 hour!
 
 #### Step 3: Confirm Password Reset
-
-Use the token from Step 2 to set a new password:
 ```bash
 curl -X POST https://your-app.railway.app/api/auth/reset-password/confirm \
   -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: YOUR_CSRF_TOKEN_FROM_STEP_1" \
-  -d '{
-    "token": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
-    "newPassword": "NewSecurePass123!"
-  }'
+  -H "x-csrf-token: YOUR_CSRF_TOKEN_FROM_STEP_1" \
+  -d "{\"token\": \"RESET_TOKEN_FROM_STEP_2\", \"newPassword\": \"NewSecurePass123!\"}"
 ```
 
-Response:
-```json
-{
-  "success": true,
-  "message": "Password reset successfully"
-}
-```
-
-#### Step 4: Login with New Password
-
-The user can now login with:
-- Username: Their original username
-- Password: The new password you set
+**Note**: On Windows PowerShell, use double quotes and escape inner quotes with backticks, or use single quotes for the outer string.
 
 ### Password Reset Rules
 
@@ -657,13 +710,19 @@ SchoolYard includes the following production-ready security features:
 
 ### CSRF Token Errors
 
-**Problem**: "Invalid CSRF token" errors
+**Problem**: "Invalid CSRF token" errors, "String contains non ISO-8859-1 code point", or "404 Not Found" when fetching `/api/auth/csrf`
 
 **Solutions**:
-1. Verify `CSRF_SECRET` is set in Railway variables
-2. Check that CSRF token is being fetched before making requests
-3. Verify token is sent in `X-CSRF-Token` header
-4. Check cookie settings (should work automatically on Railway)
+1. **⚠️ Most Common Issue**: Make sure you're on your **actual Railway app URL** (e.g., `https://your-app.up.railway.app`), NOT on `railway.com`
+   - Check your Railway dashboard → Service → Settings → Domains to find your app URL
+   - The URL should be something like `https://skoolyard-production.up.railway.app`
+2. Verify `CSRF_SECRET` is set in Railway variables
+3. Check that CSRF token is being fetched before making requests
+4. **Important**: Use lowercase header name `x-csrf-token` (not `X-CSRF-Token`)
+5. When using browser console, store token in `window.csrfToken` variable to avoid truncation issues
+6. Make sure you're using the token from the same session (cookie must match header)
+7. Check cookie settings (should work automatically on Railway)
+8. If copying token manually, ensure you copy the complete token (not truncated)
 
 ---
 

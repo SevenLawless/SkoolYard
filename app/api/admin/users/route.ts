@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { initDatabase, queryOne, getPool } from '@/lib/db/connection';
+import { initDatabase, queryOne, query, getPool } from '@/lib/db/connection';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 import { hashPassword } from '@/lib/auth/password';
 import { validatePassword } from '@/lib/auth/passwordValidation';
@@ -13,6 +13,75 @@ if (typeof window === 'undefined') {
     initDatabase();
   } catch (error) {
     console.error('Database initialization error:', error);
+  }
+}
+
+/**
+ * GET /api/admin/users
+ * Get all users (Admin only)
+ */
+export async function GET() {
+  try {
+    // Verify authentication
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('access_token')?.value;
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    const payload = verifyAccessToken(accessToken);
+    if (!payload || payload.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    // Fetch all users from database
+    const users = await query<{
+      id: string;
+      username: string;
+      role: 'admin' | 'staff' | 'parent';
+      name: string;
+      email: string;
+      phone: string | null;
+      staff_id: string | null;
+      permissions: string | null;
+      student_ids: string | null;
+    }>(
+      `SELECT id, username, role, name, email, phone, staff_id, permissions, student_ids
+       FROM users
+       ORDER BY created_at DESC`
+    );
+
+    // Transform users to match frontend format
+    const formattedUsers = users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      role: u.role,
+      name: u.name,
+      email: u.email,
+      phone: u.phone || undefined,
+      staffId: u.staff_id || undefined,
+      permissions: u.permissions ? JSON.parse(u.permissions) : undefined,
+      studentIds: u.student_ids ? JSON.parse(u.student_ids) : [],
+      password: '', // Never return password
+    }));
+
+    return NextResponse.json({
+      success: true,
+      users: formattedUsers,
+    });
+  } catch (error) {
+    console.error('Get users error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 

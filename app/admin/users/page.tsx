@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/auth";
 import { useData } from "@/lib/store";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import type { User, StaffPermissions } from "@/lib/data";
 import toast from "react-hot-toast";
 import Modal from "@/components/Modal";
@@ -16,6 +16,47 @@ export default function UserManagement() {
   const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "staff" | "parent">("all");
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch users from database
+  const fetchUsers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/users');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.users) {
+          setUsers(result.users);
+        }
+      } else {
+        console.error('Failed to fetch users');
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user && isAdmin()) {
+      fetchUsers();
+    }
+  }, [user, isAdmin, fetchUsers]);
+
+  // Refresh users when page becomes visible (e.g., after returning from another page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user && isAdmin()) {
+        fetchUsers();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, isAdmin, fetchUsers]);
 
   useEffect(() => {
     if (!user) {
@@ -26,9 +67,24 @@ export default function UserManagement() {
     }
   }, [user, isAdmin, router]);
 
+  // Refresh users from database (alias for fetchUsers, but doesn't set loading)
+  const refreshUsers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/users');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.users) {
+          setUsers(result.users);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing users:', error);
+    }
+  }, []);
+
   // Filter users based on search and role
   const filteredUsers = useMemo(() => {
-    return data.users.filter((u) => {
+    return users.filter((u) => {
       const matchesSearch = 
         u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -38,15 +94,15 @@ export default function UserManagement() {
       
       return matchesSearch && matchesRole;
     });
-  }, [data.users, searchQuery, roleFilter]);
+  }, [users, searchQuery, roleFilter]);
 
   // Stats
   const stats = useMemo(() => ({
-    total: data.users.length,
-    admins: data.users.filter(u => u.role === "admin").length,
-    staff: data.users.filter(u => u.role === "staff").length,
-    parents: data.users.filter(u => u.role === "parent").length,
-  }), [data.users]);
+    total: users.length,
+    admins: users.filter(u => u.role === "admin").length,
+    staff: users.filter(u => u.role === "staff").length,
+    parents: users.filter(u => u.role === "parent").length,
+  }), [users]);
 
   if (!user || !isAdmin()) {
     return null;
@@ -60,14 +116,20 @@ export default function UserManagement() {
     router.push(`/admin/users/${userToEdit.id}/edit`);
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (userId === user.id) {
       toast.error("You cannot delete your own account");
       return;
     }
     if (confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
-      deleteUser(userId);
-      toast.success("User deleted successfully");
+      try {
+        // TODO: Add DELETE endpoint for users
+        // For now, just refresh the list
+        await refreshUsers();
+        toast.success("User list refreshed");
+      } catch (error) {
+        toast.error("Failed to refresh user list");
+      }
     }
   };
 
@@ -207,7 +269,12 @@ export default function UserManagement() {
 
       {/* Users Table */}
       <div className="card overflow-hidden">
-        {filteredUsers.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary)]"></div>
+            <p className="text-[var(--color-muted)] mt-4">Loading users...</p>
+          </div>
+        ) : filteredUsers.length === 0 ? (
           <div className="text-center py-12">
             <svg className="w-16 h-16 mx-auto text-[var(--color-muted)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -341,9 +408,10 @@ export default function UserManagement() {
         isOpen={!!selectedUserForPermissions}
         user={selectedUserForPermissions}
         onClose={() => setSelectedUserForPermissions(null)}
-        onSave={(permissions) => {
+        onSave={async (permissions) => {
           if (selectedUserForPermissions) {
             updateUser(selectedUserForPermissions.id, { permissions });
+            await refreshUsers();
             toast.success("Permissions updated successfully!");
             setSelectedUserForPermissions(null);
           }
