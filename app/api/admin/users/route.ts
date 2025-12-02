@@ -22,6 +22,9 @@ if (typeof window === 'undefined') {
  */
 export async function GET() {
   try {
+    // Ensure database is initialized
+    initDatabase();
+
     // Verify authentication
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('access_token')?.value;
@@ -55,22 +58,51 @@ export async function GET() {
     }>(
       `SELECT id, username, role, name, email, phone, staff_id, permissions, student_ids
        FROM users
-       ORDER BY created_at DESC`
+       ORDER BY created_at DESC`,
+      [] // Empty params array
     );
 
     // Transform users to match frontend format
-    const formattedUsers = users.map((u) => ({
-      id: u.id,
-      username: u.username,
-      role: u.role,
-      name: u.name,
-      email: u.email,
-      phone: u.phone || undefined,
-      staffId: u.staff_id || undefined,
-      permissions: u.permissions ? JSON.parse(u.permissions) : undefined,
-      studentIds: u.student_ids ? JSON.parse(u.student_ids) : [],
-      password: '', // Never return password
-    }));
+    const formattedUsers = users.map((u) => {
+      let permissions: any = undefined;
+      let studentIds: string[] = [];
+
+      // Safely parse permissions JSON
+      if (u.permissions) {
+        try {
+          permissions = JSON.parse(u.permissions);
+        } catch (e) {
+          console.error(`Error parsing permissions for user ${u.id}:`, e);
+          permissions = undefined;
+        }
+      }
+
+      // Safely parse student_ids JSON
+      if (u.student_ids) {
+        try {
+          studentIds = JSON.parse(u.student_ids);
+          if (!Array.isArray(studentIds)) {
+            studentIds = [];
+          }
+        } catch (e) {
+          console.error(`Error parsing student_ids for user ${u.id}:`, e);
+          studentIds = [];
+        }
+      }
+
+      return {
+        id: u.id,
+        username: u.username,
+        role: u.role,
+        name: u.name,
+        email: u.email,
+        phone: u.phone || undefined,
+        staffId: u.staff_id || undefined,
+        permissions,
+        studentIds,
+        password: '', // Never return password
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -78,8 +110,14 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Get users error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { errorMessage, errorStack });
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     );
   }
