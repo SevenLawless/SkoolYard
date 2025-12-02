@@ -45,6 +45,7 @@ export async function GET() {
     }
 
     // Fetch all users from database
+    // Note: MySQL JSON fields may be returned as objects or strings depending on the driver
     const users = await query<{
       id: string;
       username: string;
@@ -53,8 +54,8 @@ export async function GET() {
       email: string;
       phone: string | null;
       staff_id: string | null;
-      permissions: string | null;
-      student_ids: string | null;
+      permissions: string | object | null;
+      student_ids: string | string[] | object | null;
     }>(
       `SELECT id, username, role, name, email, phone, staff_id, permissions, student_ids
        FROM users
@@ -67,22 +68,33 @@ export async function GET() {
       let permissions: any = undefined;
       let studentIds: string[] = [];
 
-      // Safely parse permissions JSON
+      // Safely parse permissions JSON (MySQL JSON fields may already be parsed)
       if (u.permissions) {
         try {
-          permissions = JSON.parse(u.permissions);
+          // Check if it's already an object
+          if (typeof u.permissions === 'object') {
+            permissions = u.permissions;
+          } else if (typeof u.permissions === 'string') {
+            permissions = JSON.parse(u.permissions);
+          }
         } catch (e) {
           console.error(`Error parsing permissions for user ${u.id}:`, e);
           permissions = undefined;
         }
       }
 
-      // Safely parse student_ids JSON
+      // Safely parse student_ids JSON (MySQL JSON fields may already be parsed)
       if (u.student_ids) {
         try {
-          studentIds = JSON.parse(u.student_ids);
-          if (!Array.isArray(studentIds)) {
-            studentIds = [];
+          // Check if it's already an array/object
+          if (Array.isArray(u.student_ids)) {
+            studentIds = u.student_ids;
+          } else if (typeof u.student_ids === 'object') {
+            // If it's an object, try to convert to array
+            studentIds = Object.values(u.student_ids) as string[];
+          } else if (typeof u.student_ids === 'string') {
+            const parsed = JSON.parse(u.student_ids);
+            studentIds = Array.isArray(parsed) ? parsed : [];
           }
         } catch (e) {
           console.error(`Error parsing student_ids for user ${u.id}:`, e);
