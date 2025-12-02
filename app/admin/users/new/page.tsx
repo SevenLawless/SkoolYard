@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import BackButton from "@/components/ui/BackButton";
 import Input from "@/components/Input";
+import { validatePassword } from "@/lib/auth/passwordValidation";
 import type { User, StaffPermissions } from "@/lib/data";
 
 export default function NewUserPage() {
@@ -72,7 +73,7 @@ export default function NewUserPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -80,47 +81,87 @@ export default function NewUserPage() {
       return;
     }
 
-    const userData: Omit<User, "id"> = {
-      username: formData.username.trim(),
-      password: formData.password,
-      role: formData.role,
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim() || undefined,
-    };
-
-    if (formData.role === "staff") {
-      userData.staffId = formData.staffId || undefined;
-      userData.permissions = {
-        viewStudents: true,
-        editStudents: true,
-        deleteStudents: false,
-        viewTeachers: true,
-        editTeachers: false,
-        deleteTeachers: false,
-        viewClasses: true,
-        editClasses: true,
-        deleteClasses: false,
-        viewPayments: true,
-        editPayments: true,
-        deletePayments: false,
-        viewStaff: true,
-        editStaff: false,
-        deleteStaff: false,
-        viewMarketing: true,
-        editMarketing: false,
-        deleteMarketing: false,
-        viewDashboard: true,
-      } as StaffPermissions;
+    // Validate password complexity for new users
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.valid) {
+      setErrors({ ...errors, password: passwordValidation.errors.join(', ') });
+      toast.error("Password does not meet requirements");
+      return;
     }
 
-    if (formData.role === "parent") {
-      userData.studentIds = formData.studentIds;
-    }
+    try {
+      // Get CSRF token
+      const csrfResponse = await fetch('/api/auth/csrf');
+      const csrfData = await csrfResponse.json();
+      const csrfToken = csrfData.token;
 
-    addUser(userData);
-    toast.success("User created successfully!");
-    router.push("/admin/users");
+      const userData: any = {
+        username: formData.username.trim(),
+        password: formData.password,
+        role: formData.role,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || undefined,
+      };
+
+      if (formData.role === "staff") {
+        userData.staffId = formData.staffId || undefined;
+        userData.permissions = {
+          viewStudents: true,
+          editStudents: true,
+          deleteStudents: false,
+          viewTeachers: true,
+          editTeachers: false,
+          deleteTeachers: false,
+          viewClasses: true,
+          editClasses: true,
+          deleteClasses: false,
+          viewPayments: true,
+          editPayments: true,
+          deletePayments: false,
+          viewStaff: true,
+          editStaff: false,
+          deleteStaff: false,
+          viewMarketing: true,
+          editMarketing: false,
+          deleteMarketing: false,
+          viewDashboard: true,
+        };
+      }
+
+      if (formData.role === "parent") {
+        userData.studentIds = formData.studentIds;
+      }
+
+      // Create user via API
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        credentials: 'include',
+        body: JSON.stringify(userData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (result.errors) {
+          setErrors({ ...errors, password: result.errors.join(', ') });
+        }
+        toast.error(result.error || 'Failed to create user');
+        return;
+      }
+
+      // Also add to local state for immediate UI update
+      addUser(userData);
+      toast.success("User created successfully!");
+      router.push("/admin/users");
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast.error('Failed to create user. Please try again.');
+    }
   };
 
   return (

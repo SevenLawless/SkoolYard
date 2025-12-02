@@ -1,0 +1,151 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { initDatabase, queryOne, getPool } from '@/lib/db/connection';
+import { verifyAccessToken } from '@/lib/auth/jwt';
+import { hashPassword } from '@/lib/auth/password';
+import { validatePassword } from '@/lib/auth/passwordValidation';
+import { logAuditEvent, getClientIp, getUserAgent } from '@/lib/audit/logger';
+import { randomBytes } from 'crypto';
+
+// Initialize database on module load
+if (typeof window === 'undefined') {
+  try {
+    initDatabase();
+  } catch (error) {
+    console.error('Database initialization error:', error);
+  }
+}
+
+/**
+ * POST /api/admin/users
+ * Create a new user (Admin only)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Verify authentication
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('access_token')?.value;
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    const payload = verifyAccessToken(accessToken);
+    if (!payload || payload.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { username, password, role, name, email, phone, staffId, permissions, studentIds } = body;
+
+    // Validation
+    if (!username || !password || !role || !name || !email) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    if (!['admin', 'staff', 'parent'].includes(role)) {
+      return NextResponse.json(
+        { error: 'Invalid role' },
+        { status: 400 }
+      );
+    }
+
+    // Validate password complexity
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return NextResponse.json(
+        {
+          error: 'Password does not meet requirements',
+          errors: passwordValidation.errors,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check if username already exists
+    const existingUser = await queryOne<{ id: string }>(
+      'SELECT id FROM users WHERE username = ?',
+      [username]
+    );
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'Username already exists' },
+        { status: 409 }
+      );
+    }
+
+    // Hash password
+    const passwordHash = await hashPassword(password);
+
+    // Prepare JSON fields
+    const permissionsJson = permissions ? JSON.stringify(permissions) : null;
+    const studentIdsJson = studentIds && studentIds.length > 0 ? JSON.stringify(studentIds) : null;
+
+    // Generate user ID
+    const userId = `usr-${randomBytes(8).toString('hex')}`;
+
+    // Insert user
+    const pool = getPool();
+    await pool.execute(
+      `INSERT INTO users 
+       (id, username, password_hash, role, name, email, phone, staff_id, permissions, student_ids, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        userId,
+        username,
+        passwordHash,
+        role,
+        name,
+        email,
+        phone || null,
+        staffId || null,
+        permissionsJson,
+        studentIdsJson,
+      ]
+    );
+
+    // Log the creation
+    await logAuditEvent({
+      action: 'user_create',
+      userId: payload.userId,
+      resourceType: 'user',
+      resourceId: userId,
+      ipAddress: getClientIp(request),
+      userAgent: getUserAgent(request),
+      details: { username, role },
+      status: 'success',
+    });
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: userId,
+        username,
+        role,
+        name,
+        email,
+        phone,
+        staffId,
+        permissions,
+        studentIds,
+      },
+    });
+  } catch (error) {
+    console.error('Create user error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+

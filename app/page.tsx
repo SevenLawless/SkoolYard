@@ -68,7 +68,7 @@ export default function Home() {
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <Input
             label="Username"
-            placeholder="admin, staff1, or parent1"
+            placeholder="Enter your username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -76,7 +76,7 @@ export default function Home() {
           <Input
             label="Password"
             type="password"
-            placeholder="password"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -92,23 +92,6 @@ export default function Home() {
           <div className="mt-2 text-xs text-[var(--color-muted)]">
             <p className="font-semibold mb-1">Password Requirements:</p>
             <p>{getPasswordRequirements()}</p>
-          </div>
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg text-sm text-blue-900">
-            <p className="font-semibold mb-3">Demo Credentials:</p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Admin:</span>
-                <code className="bg-white px-2 py-1 rounded text-xs">admin / password</code>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Staff:</span>
-                <code className="bg-white px-2 py-1 rounded text-xs">staff1 / password</code>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Parent:</span>
-                <code className="bg-white px-2 py-1 rounded text-xs">parent1 / password</code>
-              </div>
-            </div>
           </div>
         </form>
       </div>
