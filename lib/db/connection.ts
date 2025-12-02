@@ -80,9 +80,9 @@ export function getPool(): mysql.Pool {
 /**
  * Execute a query with automatic connection management
  */
-export async function query<T = any>(
+export async function query<T = unknown>(
   sql: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<T[]> {
   const pool = getPool();
   const [rows] = await pool.execute(sql, params);
@@ -92,9 +92,9 @@ export async function query<T = any>(
 /**
  * Execute a query and return the first result
  */
-export async function queryOne<T = any>(
+export async function queryOne<T = unknown>(
   sql: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<T | null> {
   const results = await query<T>(sql, params);
   return results.length > 0 ? results[0] : null;

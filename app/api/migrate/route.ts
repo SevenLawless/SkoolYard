@@ -18,12 +18,13 @@ export async function POST() {
       success: true,
       message: 'Migration completed successfully',
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Migration error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Migration failed';
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Migration failed',
+        error: errorMessage,
       },
       { status: 500 }
     );

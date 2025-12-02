@@ -71,10 +71,18 @@ export default function EditPaymentPage() {
   const paymentType = watch("type");
 
   const onSubmit = async (values: FormValues) => {
-    const paymentData: any = {
+    const paymentData: Partial<{
+      amount: number;
+      status: "paid" | "pending" | "cancelled";
+      type: "student" | "teacher" | "staff";
+      studentId?: string;
+      classId?: string;
+      teacherId?: string;
+      staffId?: string;
+    }> = {
       amount: values.amount,
-      status: values.status,
-      type: values.type,
+      status: values.status as "paid" | "pending" | "cancelled",
+      type: values.type as "student" | "teacher" | "staff",
     };
     
     if (values.type === "student") {

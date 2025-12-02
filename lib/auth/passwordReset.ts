@@ -103,7 +103,7 @@ export async function cleanupExpiredTokens(): Promise<number> {
     'DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = TRUE'
   );
   
-  const deleteResult = result as any;
+  const deleteResult = result as { affectedRows?: number };
   return deleteResult.affectedRows || 0;
 }
 

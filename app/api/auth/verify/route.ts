@@ -18,7 +18,7 @@ if (typeof window === 'undefined') {
  * GET /api/auth/verify
  * Verify current session and return user data
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('access_token')?.value;

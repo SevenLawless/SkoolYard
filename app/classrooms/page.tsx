@@ -33,7 +33,7 @@ export default function ClassroomsPage() {
       <div className="space-y-6">
         <Breadcrumbs items={[{ href: "/dashboard", label: "Dashboard" }, { label: "Rooms" }]} />
         <div className="card p-8 text-center">
-          <p className="text-gray-500">You don't have permission to view rooms</p>
+          <p className="text-gray-500">You don&apos;t have permission to view rooms</p>
         </div>
       </div>
     );

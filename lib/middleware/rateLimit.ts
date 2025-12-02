@@ -87,7 +87,8 @@ function getClientIp(req: NextRequest): string {
     return realIp;
   }
   
-  return req.ip || 'unknown';
+  // NextRequest doesn't have .ip property, use headers instead
+  return 'unknown';
 }
 
 /**

@@ -10,7 +10,7 @@ import Modal from "@/components/Modal";
 
 export default function UserManagement() {
   const { user, isAdmin } = useAuth();
-  const { data, addUser, updateUser, deleteUser } = useData();
+  const { data, updateUser, deleteUser } = useData();
   const router = useRouter();
   
   const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null);
@@ -193,7 +193,7 @@ export default function UserManagement() {
           <div className="md:w-48">
             <select
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as any)}
+              onChange={(e) => setRoleFilter(e.target.value as "all" | "admin" | "staff" | "parent")}
               className="input w-full"
             >
               <option value="all">All Roles</option>

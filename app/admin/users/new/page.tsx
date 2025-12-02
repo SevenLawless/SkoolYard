@@ -7,9 +7,8 @@ import { useAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import BackButton from "@/components/ui/BackButton";
-import Input from "@/components/Input";
 import { validatePassword } from "@/lib/auth/passwordValidation";
-import type { User, StaffPermissions } from "@/lib/data";
+import type { StaffPermissions } from "@/lib/data";
 
 export default function NewUserPage() {
   const { data, addUser } = useData();
@@ -95,10 +94,20 @@ export default function NewUserPage() {
       const csrfData = await csrfResponse.json();
       const csrfToken = csrfData.token;
 
-      const userData: any = {
+      const userData: {
+        username: string;
+        password: string;
+        role: "admin" | "staff" | "parent";
+        name: string;
+        email: string;
+        phone?: string;
+        staffId?: string;
+        permissions?: StaffPermissions;
+        studentIds?: string[];
+      } = {
         username: formData.username.trim(),
         password: formData.password,
-        role: formData.role,
+        role: formData.role as "admin" | "staff" | "parent",
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim() || undefined,
@@ -126,7 +135,7 @@ export default function NewUserPage() {
           editMarketing: false,
           deleteMarketing: false,
           viewDashboard: true,
-        };
+        } as StaffPermissions;
       }
 
       if (formData.role === "parent") {

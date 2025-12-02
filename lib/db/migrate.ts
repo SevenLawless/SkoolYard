@@ -91,10 +91,11 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   for (const statement of statements) {
     try {
       await pool.execute(statement);
-    } catch (error: any) {
+    } catch (error) {
       // Ignore "table already exists" errors
-      if (!error.message?.includes('already exists') && !error.message?.includes('Duplicate')) {
-        console.error('Schema initialization error:', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes('already exists') && !errorMessage.includes('Duplicate')) {
+        console.error('Schema initialization error:', errorMessage);
         throw error;
       }
     }
@@ -218,13 +219,15 @@ export async function migrateUsersFromLocalStorage(): Promise<void> {
       );
 
       console.log(`Migrated user: ${user.username}`);
-    } catch (error: any) {
+    } catch (error) {
       // Skip if user already exists
-      if (error.code === 'ER_DUP_ENTRY') {
+      const mysqlError = error as { code?: string; message?: string };
+      if (mysqlError.code === 'ER_DUP_ENTRY') {
         console.log(`User ${user.username} already exists, skipping`);
         continue;
       }
-      console.error(`Error migrating user ${user.username}:`, error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Error migrating user ${user.username}:`, errorMessage);
       throw error;
     }
   }

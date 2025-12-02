@@ -138,10 +138,10 @@ export default function ClassV2DetailPage() {
   };
 
   // Student attendance stats
-  const getStudentStats = (student: any) => {
-    const totalPresent = student.attendance.filter((a: any) => a.status === "present").length;
-    const totalAbsent = student.attendance.filter((a: any) => a.status === "absent").length;
-    const totalExcused = student.attendance.filter((a: any) => a.status === "excused").length;
+  const getStudentStats = (student: { attendance: Array<{ status: string }> }) => {
+    const totalPresent = student.attendance.filter((a: { status: string }) => a.status === "present").length;
+    const totalAbsent = student.attendance.filter((a: { status: string }) => a.status === "absent").length;
+    const totalExcused = student.attendance.filter((a: { status: string }) => a.status === "excused").length;
     const total = totalPresent + totalAbsent + totalExcused;
     const attendanceRate = total > 0 ? (totalPresent / total) * 100 : 0;
     const absenceRate = total > 0 ? (totalAbsent / total) * 100 : 0;

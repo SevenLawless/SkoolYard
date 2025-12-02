@@ -8,6 +8,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Input from "@/components/Input";
 import toast from "react-hot-toast";
+import type { Payment } from "@/lib/data";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import BackButton from "@/components/ui/BackButton";
 
@@ -51,10 +52,11 @@ export default function NewPaymentPage() {
   const paymentType = watch("type");
 
   const onSubmit = async (values: FormValues) => {
-    const paymentData: any = {
+    const paymentData: Omit<Payment, "id"> = {
       amount: values.amount,
-      status: values.status,
-      type: values.type,
+      status: values.status as "paid" | "pending" | "cancelled",
+      type: values.type as "student" | "teacher" | "staff",
+      date: new Date().toISOString(),
     };
     
     if (values.type === "student") {

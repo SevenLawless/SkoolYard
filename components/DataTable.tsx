@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 
 export type DataTableProps<TData> = {
   data: TData[];
-  columns: ColumnDef<TData, any>[];
+  columns: ColumnDef<TData, unknown>[];
   globalFilter?: string;
 };
 

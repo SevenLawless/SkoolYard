@@ -1,6 +1,5 @@
 import { getPool } from '@/lib/db/connection';
 import { randomBytes } from 'crypto';
-import type { TokenPair } from './jwt';
 
 export interface Session {
   id: string;
@@ -96,7 +95,7 @@ export async function cleanupExpiredSessions(): Promise<number> {
     'DELETE FROM sessions WHERE expires_at < NOW()'
   );
   
-  const deleteResult = result as any;
+  const deleteResult = result as { affectedRows?: number };
   return deleteResult.affectedRows || 0;
 }
 

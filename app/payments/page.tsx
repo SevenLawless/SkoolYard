@@ -39,7 +39,7 @@ export default function PaymentsPage() {
 
   const handleDownloadInvoice = (payment: typeof filteredPayments[number]) => {
     let payerName = "";
-    let additionalInfo: any = {};
+    const additionalInfo: Record<string, string> = {};
     
     if (payment.type === "student" && payment.studentId) {
       const student = data.students.find((s) => s.id === payment.studentId);

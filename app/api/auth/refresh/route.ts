@@ -17,7 +17,7 @@ if (typeof window === 'undefined') {
  * POST /api/auth/refresh
  * Refresh access token using refresh token
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const sessionId = cookieStore.get('session_id')?.value;

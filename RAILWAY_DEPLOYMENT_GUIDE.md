@@ -84,6 +84,7 @@ Railway should auto-detect Next.js, but verify:
 2. Go to the **"Variables"** tab
 3. Find the `MYSQL_URL` or `DATABASE_URL` variable
 4. Copy the connection string (format: `mysql://user:password@host:port/database`)
+'mysql://root:VBghUkJHTYugaPFRSXWDcromhNdoGNcF@hopper.proxy.rlwy.net:35080/railway'
 
 **Important**: Railway automatically creates a `DATABASE_URL` environment variable. You'll need this in the next step.
 

@@ -250,7 +250,7 @@ export default function NewClassPage() {
             What Happens Next?
           </h2>
           <div className="text-sm text-green-800 space-y-2">
-            <p>After creating this class, you'll be able to:</p>
+            <p>After creating this class, you&apos;ll be able to:</p>
             <ul className="ml-6 space-y-1 list-disc">
               <li><strong>Add Teachers:</strong> Assign one or multiple teachers to this class</li>
               <li><strong>Enroll Students:</strong> Add students from your existing student database</li>

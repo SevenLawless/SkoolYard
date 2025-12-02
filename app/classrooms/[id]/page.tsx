@@ -59,7 +59,7 @@ export default function ClassroomSchedulePage() {
       <div className="space-y-6">
         <Breadcrumbs items={[{ href: "/dashboard", label: "Dashboard" }, { href: "/classrooms", label: "Rooms" }, { label: "Schedule" }]} />
         <div className="card p-8 text-center">
-          <p className="text-gray-500">You don't have permission to view rooms</p>
+          <p className="text-gray-500">You don&apos;t have permission to view rooms</p>
         </div>
       </div>
     );
@@ -98,7 +98,7 @@ export default function ClassroomSchedulePage() {
             <div>
               <p className="text-sm font-semibold text-yellow-900">Some classes missing schedule information</p>
               <p className="text-xs text-yellow-700 mt-1">
-                Some classes in this room don't have days of week or time set. They won't appear in the schedule grid below.
+                Some classes in this room don&apos;t have days of week or time set. They won&apos;t appear in the schedule grid below.
               </p>
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function ClassroomSchedulePage() {
         <div className="card p-6 bg-yellow-50 border border-yellow-200">
           <h2 className="text-xl font-semibold mb-2 text-yellow-900">No Classes Assigned</h2>
           <p className="text-yellow-700">
-            This room doesn't have any classes assigned to it yet. Assign a classroom when creating or editing a class.
+            This room doesn&apos;t have any classes assigned to it yet. Assign a classroom when creating or editing a class.
           </p>
           <button
             className="btn-primary mt-4"
