@@ -95,14 +95,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const [studentsRes, teachersRes, staffRes, classesRes, paymentsRes, marketingRes, classroomsRes, expensesRes] = await Promise.all([
-        fetch('/api/students').then(r => r.json()),
-        fetch('/api/teachers').then(r => r.json()),
-        fetch('/api/staff').then(r => r.json()),
-        fetch('/api/classes').then(r => r.json()),
-        fetch('/api/payments').then(r => r.json()),
-        fetch('/api/marketing/classes').then(r => r.json()),
-        fetch('/api/classrooms').then(r => r.json()),
-        fetch('/api/expenses').then(r => r.json()),
+        fetch('/api/students', { credentials: 'include' }).then(r => r.json()),
+        fetch('/api/teachers', { credentials: 'include' }).then(r => r.json()),
+        fetch('/api/staff', { credentials: 'include' }).then(r => r.json()),
+        fetch('/api/classes', { credentials: 'include' }).then(r => r.json()),
+        fetch('/api/payments', { credentials: 'include' }).then(r => r.json()),
+        fetch('/api/marketing/classes', { credentials: 'include' }).then(r => r.json()),
+        fetch('/api/classrooms', { credentials: 'include' }).then(r => r.json()),
+        fetch('/api/expenses', { credentials: 'include' }).then(r => r.json()),
       ]);
 
       setDataState({
