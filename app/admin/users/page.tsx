@@ -10,7 +10,7 @@ import Modal from "@/components/Modal";
 
 export default function UserManagement() {
   const { user, isAdmin } = useAuth();
-  const { data, updateUser, deleteUser } = useData();
+  const { updateUser } = useData();
   const router = useRouter();
   
   const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null);
@@ -127,7 +127,7 @@ export default function UserManagement() {
         // For now, just refresh the list
         await refreshUsers();
         toast.success("User list refreshed");
-      } catch (error) {
+      } catch {
         toast.error("Failed to refresh user list");
       }
     }

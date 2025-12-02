@@ -6,6 +6,7 @@ import { hashPassword } from '@/lib/auth/password';
 import { validatePassword } from '@/lib/auth/passwordValidation';
 import { logAuditEvent, getClientIp, getUserAgent } from '@/lib/audit/logger';
 import { randomBytes } from 'crypto';
+import type { StaffPermissions } from '@/lib/data';
 
 // Initialize database on module load
 if (typeof window === 'undefined') {
@@ -65,17 +66,17 @@ export async function GET() {
 
     // Transform users to match frontend format
     const formattedUsers = users.map((u) => {
-      let permissions: any = undefined;
+      let permissions: StaffPermissions | undefined = undefined;
       let studentIds: string[] = [];
 
       // Safely parse permissions JSON (MySQL JSON fields may already be parsed)
       if (u.permissions) {
         try {
           // Check if it's already an object
-          if (typeof u.permissions === 'object') {
-            permissions = u.permissions;
+          if (typeof u.permissions === 'object' && !Array.isArray(u.permissions)) {
+            permissions = u.permissions as StaffPermissions;
           } else if (typeof u.permissions === 'string') {
-            permissions = JSON.parse(u.permissions);
+            permissions = JSON.parse(u.permissions) as StaffPermissions;
           }
         } catch (e) {
           console.error(`Error parsing permissions for user ${u.id}:`, e);
