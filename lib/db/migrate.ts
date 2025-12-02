@@ -83,25 +83,45 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   }
   
   // Split by semicolon and execute each statement
-  const statements = schema
+  // Remove comments first
+  const cleanedSchema = schema
+    .split('\n')
+    .filter(line => !line.trim().startsWith('--'))
+    .join('\n');
+  
+  const statements = cleanedSchema
     .split(';')
     .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith('--'));
+    .filter((s) => s.length > 0);
 
-  for (const statement of statements) {
+  console.log(`Found ${statements.length} SQL statements to execute`);
+
+  // Execute each statement
+  for (let i = 0; i < statements.length; i++) {
+    const statement = statements[i];
+    if (statement.trim().length === 0) continue;
+    
+    const statementPreview = statement.substring(0, 60).replace(/\s+/g, ' ');
     try {
+      console.log(`Executing statement ${i + 1}/${statements.length}: ${statementPreview}...`);
       await pool.execute(statement);
+      console.log(`Statement ${i + 1} executed successfully`);
     } catch (error) {
-      // Ignore "table already exists" errors
       const errorMessage = error instanceof Error ? error.message : String(error);
-      if (!errorMessage.includes('already exists') && !errorMessage.includes('Duplicate')) {
-        console.error('Schema initialization error:', errorMessage);
-        throw error;
+      // Ignore "table already exists" and "duplicate key" errors
+      if (errorMessage.includes('already exists') || 
+          errorMessage.includes('Duplicate') ||
+          errorMessage.includes('Duplicate key name')) {
+        console.log(`Statement ${i + 1} skipped (already exists): ${statementPreview}`);
+        continue;
       }
+      console.error(`Schema initialization error on statement ${i + 1}:`, errorMessage);
+      console.error('Failed statement:', statement.substring(0, 200));
+      throw error;
     }
   }
 
-  console.log('Database schema initialized');
+  console.log('Database schema initialized successfully');
 }
 
 /**
@@ -110,6 +130,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
  */
 export async function migrateUsersFromLocalStorage(): Promise<void> {
   const pool = getPool();
+  
+  // First, verify the users table exists
+  try {
+    await pool.execute('SELECT 1 FROM users LIMIT 1');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("doesn't exist")) {
+      throw new Error('Users table does not exist. Please run schema initialization first.');
+    }
+    throw error;
+  }
   
   // Check if users table has any data
   const existingUsers = await query<{ count: number }>(

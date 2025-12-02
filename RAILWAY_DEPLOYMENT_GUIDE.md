@@ -204,6 +204,9 @@ You can watch the deployment progress in the **"Deployments"** tab.
 2. Scroll to **"Networking"** section
 3. Click **"Generate Domain"**
 4. Railway will provide a domain like: `your-app-name.up.railway.app`
+'skoolyard-production.up.railway.app'
+curl -X POST skoolyard-production.up.railway.app/api/migrate
+
 
 **Note**: You can also set up a custom domain later if needed.
 
